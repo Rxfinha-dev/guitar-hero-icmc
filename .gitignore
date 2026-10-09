@@ -1,0 +1,21 @@
+# Binarios gerados pelo build.sh
+Montador/montador
+Montador/montador.exe
+Simulador/sim
+Simulador/sim.exe
+SimpleSimulator/simples
+SimpleSimulator/simples.exe
+tools/headless/headless
+tools/headless/headless.exe
+*.o
+
+# Temporarios
+.tmp/
+__pycache__/
+
+# Saidas geradas pelos testes (o cpuram.mif da raiz e' entrega e fica no repositorio)
+testes/*.mif
+testes/jogo_sound.asm
+testes/simples/*.mif
+testes/simples/**/cpuram.mif
+testes/simples/**/saida.txt

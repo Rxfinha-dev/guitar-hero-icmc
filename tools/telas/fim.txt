@@ -1,0 +1,13 @@
+# prefixo fimL
+# largura 22
+ahhhhhhhhhhhhhhhhhhhhb
+v                    v
+v    FIM DE JOGO!    v
+v                    v
+v PONTOS      00000  v
+v ACERTOS   000/000  v
+v COMBO MAX     000  v
+v PRECISAO     000%  v
+v CONCEITO        -  v
+v ESPACO: DE NOVO    v
+chhhhhhhhhhhhhhhhhhhhd

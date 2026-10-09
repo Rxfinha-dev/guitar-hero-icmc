@@ -1,0 +1,32 @@
+# prefixo menuL
+# largura 40
+ahhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhb
+v                                      v
+v                                      v
+v         s GUITAR HERO ICMC s         v
+v                                      v
+v      JOGO DE RITMO EM ASSEMBLY       v
+v         DO PROCESSADOR ICMC          v
+v                                      v
+v          efg  ijk  lmn  oqr          v
+v           w    x    y    z           v
+v                                      v
+v  COMO JOGAR:                         v
+v  AS NOTAS DESCEM PELAS 4 PISTAS.     v
+v  APERTE A TECLA DA PISTA QUANDO A    v
+v  NOTA ESTIVER SOBRE O ALVO.          v
+v                                      v
+v  NO ALVO ............ 10 PONTOS      v
+v  QUASE (1 LINHA) ..... 5 PONTOS      v
+v  10 ACERTOS SEGUIDOS SOBEM O         v
+v  MULTIPLICADOR (ATE X4).             v
+v                                      v
+v  VELOCIDADE: 5   (TECLAS 1 A 9)      v
+v                                      v
+v  ESPACO: COMECAR A MUSICA            v
+v                                      v
+v  NOVA INSTRUCAO SNDN: A MUSICA TOCA  v
+v  SEM TRAVAR O PROCESSADOR.           v
+v                                      v
+v  SSC0511 - ICMC/USP                  v
+chhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhd

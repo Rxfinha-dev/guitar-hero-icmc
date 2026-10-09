@@ -1,0 +1,6 @@
+# O load_charmap do simulador usa fseek() em modo texto: no Windows o charmap.mif
+# so' e' lido corretamente com as quebras de linha CRLF originais. Nao converter.
+*.mif -text
+
+# Scripts de shell precisam de LF para rodar no Linux.
+*.sh text eol=lf
