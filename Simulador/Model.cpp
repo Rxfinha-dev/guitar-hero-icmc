@@ -7,20 +7,33 @@ void* processaAutomatico(void *data)
 
 	Model *model = (Model*) data;
 
-	int contador = 0;
+	// Clock fixo: a cada BLOCO instrucoes, compara o tempo que deveria ter
+	// passado (instrucoes / CLOCK_HZ) com o tempo real e dorme a diferenca.
+	// A pausa tambem libera o lock do GTK para a janela se redesenhar com
+	// regularidade (antes a thread da tela quase nunca conseguia o lock).
+	const long long BLOCO = 2000;
+	gint64 inicio = g_get_monotonic_time();     // microssegundos
+	long long executadas = 0;
 
 	while( model->getProcessamento() ) // automatico
 	{	gdk_threads_enter();
 		model->processador();
 		gdk_threads_leave();
 
-		contador++;
-//*
-		if(contador > 500)
-		{	model->delay();
-			contador = 0;
+		if(++executadas % BLOCO == 0)
+		{	gint64 alvo = inicio + executadas * 1000000LL / CLOCK_HZ;
+			gint64 agora = g_get_monotonic_time();
+			if(alvo - agora > 1000)
+				g_usleep(alvo - agora);     // adiantado: espera o clock
+			else if(agora - alvo > 100000)
+			{	// atrasado mais de 100 ms (computador lento ou pausa longa no
+				// SOUND): nao tenta compensar acelerando, so' recomeca a contagem
+				inicio = agora;
+				executadas = 0;
+			}
+			else
+				g_thread_yield();
 		}
-//*/
 	}
 	gdk_threads_enter();
 	model->updateAll();

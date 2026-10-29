@@ -4,8 +4,18 @@
 
 using namespace std;
 
+#ifdef _WIN32
+// Sem isso o Windows so' acorda threads a cada ~15 ms, e o clock fixo do
+// simulador (Model.cpp) ficaria com frames irregulares. (winmm.dll)
+extern "C" __declspec(dllimport) unsigned int __stdcall timeBeginPeriod(unsigned int);
+#endif
+
 int main(int argc, char *argv[])
-{	
+{
+#ifdef _WIN32
+	timeBeginPeriod(1);
+#endif
+
 //*
   // init threads
   g_thread_init(NULL);

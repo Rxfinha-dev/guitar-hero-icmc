@@ -1,6 +1,12 @@
 #ifndef MNEUMONICOS_H
 #define MNEUMONICOS_H
 
+// Clock do processador simulado (instrucoes por segundo no modo automatico).
+// O original rodava "o mais rapido possivel", e a velocidade de um programa
+// dependia do computador. Com o clock fixo, como numa placa de verdade, o
+// tempo de cada laco do programa e' o mesmo em qualquer maquina.
+#define CLOCK_HZ 5000000
+
 #define TAMANHO_PALAVRA 16
 #define TAMANHO_MEMORIA 32768
 

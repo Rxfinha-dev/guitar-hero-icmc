@@ -1,6 +1,8 @@
-; Calibracao de velocidade do simulador.
+; Medicao da velocidade do simulador.
 ; Executa blocos de ~20000 instrucoes e mostra na tela quantos blocos ja rodou.
 ; Velocidade (instrucoes/s) ~= blocos * 20040 / segundos decorridos.
+; Com o clock fixo do simulador (5 MHz) devem sair ~250 blocos por segundo;
+; bem menos que isso indica um computador que nao consegue acompanhar o clock.
 ;
 ; Linha 0: contador do laco SEM outchar   (dec + jnz)
 ; Linha 2: contador do laco COM outchar   (outchar + dec + jnz) - roda depois de 300 blocos
