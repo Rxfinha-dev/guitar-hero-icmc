@@ -1,4 +1,5 @@
 #include "Sound.h"
+#include <cstdio>
 
 Beeper::Beeper()
 {
@@ -9,14 +10,18 @@ Beeper::Beeper()
     desiredSpec.freq = FREQUENCY;
     desiredSpec.format = AUDIO_S16SYS;
     desiredSpec.channels = 1;
-    desiredSpec.samples = 2048;
+    // 512 amostras = ~12 ms por bloco. O original usava 2048 (~46 ms), e o som
+    // saia visivelmente atrasado em relacao a nota chegando ao alvo.
+    desiredSpec.samples = 512;
     desiredSpec.callback = audio_callback;
     desiredSpec.userdata = this;
 
-    SDL_AudioSpec obtainedSpec;
-
-    // you might want to look for errors here
-    SDL_OpenAudio(&desiredSpec, &obtainedSpec);
+    // obtained = NULL: o SDL converte nosso S16 mono para o formato da placa.
+    // O original passava um obtainedSpec, e com isso o SDL2 NAO converte: no
+    // Windows (WASAPI, float 32 bits estereo) o callback escrevia no formato
+    // errado e nao saia som nenhum.
+    if (SDL_OpenAudio(&desiredSpec, NULL) != 0)
+        fprintf(stderr, "Erro ao abrir o audio: %s\n", SDL_GetError());
 
     // start play audio
     SDL_PauseAudio(0);
@@ -27,6 +32,10 @@ Beeper::~Beeper(){
 }
 
 
+
+// Cada nota entra e sai com uma rampa de volume de RAMPA amostras (~5 ms):
+// sem ela, o inicio e o fim da onda sao degraus e cada nota "estala".
+static const int RAMPA = FREQUENCY / 200;
 
 void Beeper::generateSamples(Sint16 *stream, int length)
 {
@@ -41,19 +50,22 @@ void Beeper::generateSamples(Sint16 *stream, int length)
             return;
         }
         BeepObject& bo = beeps.front();
-
-        int samplesToDo = std::min(i + bo.samplesLeft, length);
-        bo.samplesLeft -= samplesToDo - i;
-
-        while (i < samplesToDo) {
-            stream[i] = chooseWave(bo.wave_type, FREQUENCY, AMPLITUDE, v);
-            i++;
-            v += bo.freq;
-        }
-
-        if (bo.samplesLeft == 0) {
+        if (bo.samplesLeft <= 0) {
             beeps.pop();
+            continue;
         }
+
+        int feitas = bo.totalSamples - bo.samplesLeft;
+        double envelope = 1.0;
+        if (feitas < RAMPA)
+            envelope = (double) feitas / RAMPA;
+        if (bo.samplesLeft < RAMPA)
+            envelope = std::min(envelope, (double) bo.samplesLeft / RAMPA);
+
+        stream[i] = (Sint16) (chooseWave(bo.wave_type, FREQUENCY, AMPLITUDE, v) * envelope);
+        i++;
+        v += bo.freq;
+        bo.samplesLeft--;
     }
 }
 
@@ -101,6 +113,7 @@ void Beeper::beep(string wave, double freq, int duration){
     bo.freq = freq;
     bo.wave_type = wave;
     bo.samplesLeft = duration * FREQUENCY / 1000;
+    bo.totalSamples = bo.samplesLeft;
 
     SDL_LockAudio();
     beeps.push(bo);
@@ -113,6 +126,7 @@ void Beeper::replace(string wave, double freq, int duration){
     bo.freq = freq;
     bo.wave_type = wave;
     bo.samplesLeft = duration * FREQUENCY / 1000;
+    bo.totalSamples = bo.samplesLeft;
 
     SDL_LockAudio();
     beeps = queue<BeepObject>();

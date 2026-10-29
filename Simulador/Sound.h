@@ -8,13 +8,16 @@
 #include <cmath>
 using namespace std;
 
-const int AMPLITUDE = 28000;
+// Volume. O original usava 28000, quase o maximo de 16 bits (32767): com a
+// onda quadrada ficava alto demais. 7000 e' 1/4 da amplitude (cerca de -12 dB).
+const int AMPLITUDE = 7000;
 const int FREQUENCY = 44100;
 
 struct BeepObject
 {
     double freq;
     int samplesLeft;
+    int totalSamples;       // duracao total, para a rampa de volume (envelope)
     string wave_type;
 };
 
