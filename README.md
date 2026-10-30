@@ -190,7 +190,3 @@ Cada cenário confere o resultado final:
 | reinício | `ESPAÇO` volta ao menu e a nova partida começa zerada |
 
 Os testes também conferem as 62 notas da melodia tocadas via `SNDN`, com 0 ms de CPU travada.
-
-## Autores
-
-> **TODO:** nome e número USP de cada integrante do grupo.
