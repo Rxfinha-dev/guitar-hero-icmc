@@ -50,15 +50,18 @@ Prof. Eduardo do Valle Simões.
 | Tecla | Ação |
 |---|---|
 | `1` … `9` (no menu) | escolhe a velocidade |
+| `M` (no menu) | troca a música |
 | `ESPAÇO` | começa a música / joga de novo |
 | `D` `F` `J` `K` | acerta a nota da pista verde, vermelha, amarela, azul |
 
 As notas descem pelas 4 pistas. Aperte a tecla da pista quando a nota estiver sobre o alvo:
 
-- **No alvo:** 10 pontos (`PERFEITO!`)
-- **Uma linha antes ou depois:** 5 pontos (`QUASE`)
+- **No alvo, com folga de 1 linha para cima ou para baixo:** 10 pontos (`PERFEITO!`) e uma faísca no alvo
+- **A 2 linhas do alvo:** 5 pontos (`QUASE`) e uma faísca no alvo
 - **A cada 10 acertos seguidos** o multiplicador sobe, até **x4**
-- **Deixar a nota passar, ou apertar sem nota,** zera o combo
+- **Deixar a nota passar** zera o combo (`ERROU!`)
+- **Apertar sem nota por perto:** o alvo da pista fica todo preenchido na cor dela e o combo zera
+- **Duas notas da mesma pista na janela:** a tecla vale para a mais antiga (a mais baixa)
 
 A música (*Ode à Alegria*, de Beethoven) toca sozinha: cada nota soa exatamente quando chega ao alvo.
 No fim aparecem pontos, acertos, combo máximo, precisão e um conceito (S, A, B, C, D).
@@ -78,10 +81,20 @@ No fim aparecem pontos, acertos, combo máximo, precisão e um conceito (S, A, B
 
 No simulador, aperte **Home** para executar em modo automático e depois use as teclas do jogo.
 
-**Velocidade:** o simulador executa o mais rápido que o computador permite, então o ritmo
-depende da máquina. Se as notas descerem rápido ou devagar demais, escolha outro nível (1 a 9) no menu.
-O nível 5 foi calibrado para cerca de 20 milhões de instruções por segundo. Para medir a sua
-máquina, rode `testes/calibra.asm`: após *N* segundos, velocidade ≈ (número da linha 0) × 20040 / *N*.
+**Velocidade e sincronia:** o simulador roda com **clock fixo de 5 MHz** (`CLOCK_HZ` em
+`Simulador/Mneumonicos.h`), como uma placa de verdade, em vez de "o mais rápido possível". Assim um
+frame do jogo dura exatamente o que a tabela `tabMsFrame` diz (65 ms no nível 5), em qualquer computador,
+e a música fica sincronizada com as notas: medido com `python tools/mede_sincronia.py`, cada nota termina
+a menos de 0,5% do início da seguinte. A pausa do clock também deixa a janela redesenhar com
+regularidade, por isso as notas descem sem trancos. Os níveis 1 a 9 do menu continuam escolhendo a
+dificuldade. Para conferir o clock, rode `testes/calibra.asm`: devem sair ~250 blocos por segundo na linha 0.
+
+**Áudio:** para conferir o som sem abrir o jogo, rode o teste de ouvido
+(`g++ testes/teste_beep.cpp Simulador/Sound.cpp -ISimulador -o testes/teste_beep -lSDL2`).
+Ele toca Dó-Ré-Mi com `SOUND` e a Ode à Alegria com `SNDN`. Se ficar mudo, o
+`testes/diagnostico_audio.cpp` mostra o formato que a placa de som aceitou. O volume fica na constante
+`AMPLITUDE` de `Simulador/Sound.h` (hoje 7000, um quarto do original). Cada nota entra e sai com uma
+rampa de 5 ms para não estalar, e o áudio é gerado em blocos de ~12 ms para sair junto com a imagem.
 
 ## Modificação na arquitetura: instrução `SNDN`
 
@@ -149,7 +162,9 @@ testes/                  programas de teste e calibração
 ### Arquitetura do jogo
 
 - **Tela:** 40 × 30. As notas nascem na linha 3, descem 1 linha por frame e o alvo fica na linha 25.
-  A janela de acerto vai da linha 24 à 26.
+  A janela de acerto vai da linha 23 à 27: 24–26 é perfeito e 23 ou 27 é quase. No nível 5 cada
+  linha dura ~65 ms, então o "perfeito" aceita ~65 ms de erro para cada lado. As mensagens ficam
+  na linha 28, abaixo da última linha por onde as notas passam.
 - **Mapa da música:** uma palavra de 16 bits por frame. Bits 3–0: pistas que recebem nota.
   Bits 9–4: índice da nota em `freqs`. Bits 13–10: duração em frames. `65535` marca o fim.
 - **Sincronia:** uma nota leva 22 frames da linha 3 ao alvo, então a melodia lê o mapa com 22 frames
@@ -163,10 +178,60 @@ testes/                  programas de teste e calibração
 
 ## Como criar novas músicas
 
-1. Escreva a partitura em `tools/musicas/minha_musica.txt` (veja o formato em `ode_alegria.txt`:
-   `NOTA DURAÇÃO`, acordes com `+`, pausas com `-`).
-2. `python tools/gera_musica.py jogo.asm tools/musicas/minha_musica.txt`
-3. Monte de novo o `cpuram.mif`. Se o número de notas mudar, atualize `TOTAL_NOTAS` e os valores esperados em `tools/testa_jogo.py`.
+O menu oferece todas as músicas passadas ao gerador, **na ordem dos arquivos** (tecla `M` troca).
+Hoje são `ode_alegria.txt`, `arpejo_la_menor.txt` e `minha_musica.txt` (um modelo para você substituir).
+
+1. Escreva a partitura em `tools/musicas/minha_musica.txt` (ou crie outro `.txt` no mesmo formato).
+2. Gere e monte, listando **todas** as músicas que devem aparecer no menu (a que ficar de fora some do jogo):
+   ```bash
+   python tools/gera_musica.py jogo.asm tools/musicas/ode_alegria.txt tools/musicas/arpejo_la_menor.txt tools/musicas/minha_musica.txt
+   ./Montador/montador jogo.asm cpuram.mif
+   ```
+3. Confira com `python tools/testa_jogo.py`. O teste joga cada música do menu e exige que o robô
+   acerte todas as notas; se ele falhar, há notas próximas demais na mesma pista.
+
+### Como transcrever uma música
+
+> A especificação completa, para entregar a um transcritor ou colar num modelo de IA (com prompt
+> pronto, regras de ritmo, tercinas, MIDI, tablatura e checklist), está em
+> [docs/formato_partitura.md](docs/formato_partitura.md). Para conferir um arquivo transcrito:
+> `python tools/gera_musica.py --validar tools/musicas/minha_musica.txt`.
+
+**Resumo do formato:**
+```
+nome MINHA MUSICA          # nome no menu (até 20 caracteres)
+painel MINHA|MUSICA|       # 3 linhas do painel lateral (até 9 caracteres cada)
+onda 1                     # 0 seno, 1 quadrada (guitarra de videogame), 2 triangular, 3 dente de serra
+slots_por_tempo 8          # frames por tempo (semínima)
+pistas A3=0 C4=1 E4=2 G4=3 # pista (0=D, 1=F, 2=J, 3=K) de cada altura usada
+E4 0.5                     # NOTA DURAÇÃO_EM_TEMPOS   (1 = semínima, 0.5 = colcheia, 0.25 = semicolcheia)
+- 1                        # pausa
+A3+E4 2                    # duas notas juntas (só a primeira soa)
+```
+
+**Passo a passo, partindo de uma tablatura de guitarra:**
+
+1. **Converta cada número da tablatura em nota.** Cada corda solta tem uma nota na afinação padrão,
+   da mais grave para a mais aguda:
+
+   | Corda | 6ª (E grave) | 5ª | 4ª | 3ª | 2ª | 1ª (e aguda) |
+   |---|---|---|---|---|---|---|
+   | Solta | E2 | A2 | D3 | G3 | B3 | E4 |
+
+   Cada casa sobe um semitom: C → C# → D → D# → E → F → F# → G → G# → A → A# → B → (C da oitava seguinte).
+   Exemplo genérico: corda G (G3) na casa 5 → G#3, A3, A#3, B3, **C4**.
+2. **Respeite a faixa do jogo, C3 a D8.** Notas mais graves que C3 (comuns nas cordas E e A)
+   devem subir uma oitava inteira (+12 semitons, ex.: E2 → E3). O gerador avisa quando uma nota sai da faixa.
+3. **Durações.** Anote o tempo de cada nota em relação à semínima (1). Em riffs rápidos de
+   semicolcheias use `slots_por_tempo 8`: cada semicolcheia vira 2 frames. Se ficar difícil de jogar,
+   aumente para 12 (o jogo fica mais lento e espaçado).
+4. **Pistas.** Na linha `pistas`, distribua as alturas da mais grave (0) para a mais aguda (3), como no
+   Guitar Hero. Evite a mesma pista em notas a menos de 3 frames de distância: ficam impossíveis de acertar.
+5. **Teste:** gere, monte e jogue (veja os comandos acima).
+
+> Músicas comerciais são protegidas por direito autoral. Uma transcrição feita por você para uso
+> pessoal ou acadêmico é escolha sua, mas se o repositório for público prefira deixar esse `.txt` de fora
+> (ou use músicas em domínio público, como a Ode à Alegria).
 
 Para alterar telas ou sprites: edite `tools/telas/*.txt` ou `tools/gera_charmap.py` e rode
 `python tools/gera_telas.py jogo.asm tools/telas/jogo.txt tools/telas/menu.txt tools/telas/fim.txt` ou
@@ -183,10 +248,12 @@ Cada cenário confere o resultado final:
 
 | Cenário | Resultado esperado |
 |---|---|
-| acerta tudo no alvo | 63/63, 1920 pontos, conceito S |
-| acerta tudo uma linha antes | 63/63, 960 pontos (`QUASE`) |
+| acerta tudo na linha 25, 24 ou 26 | 63/63, 1920 pontos (`PERFEITO`), conceito S |
+| acerta tudo na linha 23 ou 27 | 63/63, 960 pontos (`QUASE`) |
 | aperta fora da janela | 0 acertos, conceito D |
 | ninguém joga | 0 acertos, conceito D |
+| cada música extra do menu | o robô acerta todas as notas |
+| tecla sem nota | alvo preenchido, sem faísca, 1 erro, e depois o alvo volta ao normal |
 | reinício | `ESPAÇO` volta ao menu e a nova partida começa zerada |
 
-Os testes também conferem as 62 notas da melodia tocadas via `SNDN`, com 0 ms de CPU travada.
+Os testes também conferem as notas da melodia tocadas via `SNDN`, com 0 ms de CPU travada.

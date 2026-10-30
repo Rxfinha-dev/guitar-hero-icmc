@@ -16,14 +16,14 @@ v  AS NOTAS DESCEM PELAS 4 PISTAS.     v
 v  APERTE A TECLA DA PISTA QUANDO A    v
 v  NOTA ESTIVER SOBRE O ALVO.          v
 v                                      v
-v  NO ALVO ............ 10 PONTOS      v
-v  QUASE (1 LINHA) ..... 5 PONTOS      v
+v  NO ALVO (1 LINHA DE FOLGA) 10 PONTOSv
+v  QUASE (2 LINHAS) .......... 5 PONTOSv
 v  10 ACERTOS SEGUIDOS SOBEM O         v
 v  MULTIPLICADOR (ATE X4).             v
 v                                      v
 v  VELOCIDADE: 5   (TECLAS 1 A 9)      v
-v                                      v
-v  ESPACO: COMECAR A MUSICA            v
+v  MUSICA:                             v
+v  M: TROCA A MUSICA   ESPACO: COMECAR v
 v                                      v
 v  NOVA INSTRUCAO SNDN: A MUSICA TOCA  v
 v  SEM TRAVAR O PROCESSADOR.           v

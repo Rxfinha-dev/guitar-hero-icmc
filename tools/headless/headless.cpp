@@ -16,7 +16,10 @@
 //     --autoplay          "robo" do Guitar Hero ICMC: le a linha do alvo na tela
 //                         e aperta a tecla da pista quando ve o meio de uma nota
 //     --autoplay-linha N  igual, mas o robo aperta quando a nota esta na linha N
-//                         (25 = no alvo, 24/26 = "quase", 23 = fora da janela)
+//                         (24..26 = perfeito, 23/27 = "quase", 22 ou menos = fora da janela)
+//     --tempo-real S      executa por S segundos de relogio usando a MESMA rotina do
+//                         modo automatico do simulador (processaAutomatico, com o
+//                         clock fixo) e imprime a tela; serve para medir o clock
 //     --gui-lock          envolve cada instrucao em gdk_threads_enter/leave,
 //                         como faz o simulador grafico (para medir velocidade)
 //
@@ -31,6 +34,13 @@
 #include <map>
 #include <set>
 #include <vector>
+
+// Laco do modo automatico do simulador grafico (Model.cpp)
+void* processaAutomatico(void *data);
+
+#ifdef _WIN32
+extern "C" __declspec(dllimport) unsigned int __stdcall timeBeginPeriod(unsigned int);
+#endif
 
 struct StubVideo : public Video { void updateVideo(int) {} };
 struct StubIns : public Instrucoes { void updateInstrucoes(unsigned int, unsigned int, unsigned int) {} };
@@ -57,8 +67,9 @@ struct StubController : public ControllerInterface {
 // Como mostrar os sprites do jogo (codigos < 32 do charmap) em texto.
 static char spriteChar(int c)
 {
-	static const char *tabela = " (=)?:[_]|-++++#s*";   // codigos 0..17
-	if (c >= 0 && c <= 17) return tabela[c];
+	// codigos 0..26: {O} = alvo cheio; /=\ e \=/ = nota em meia linha (parte de cima / de baixo)
+	static const char *tabela = " (=)?:[_]|-++++#s*{O}/=\\\\=/";
+	if (c >= 0 && c <= 26) return tabela[c];
 	return '#';
 }
 
@@ -101,6 +112,7 @@ int main(int argc, char *argv[])
 	int linhaRobo = 25;
 	int memStart = -1, memCount = 1;
 	int glyphFrom = -1, glyphTo = -1;
+	double tempoReal = 0;
 
 	for (int i = 3; i < argc; i++) {
 		if (!strcmp(argv[i], "--cycles") && i + 1 < argc) maxCycles = atol(argv[++i]);
@@ -115,6 +127,7 @@ int main(int argc, char *argv[])
 		else if (!strcmp(argv[i], "--quiet")) quiet = true;
 		else if (!strcmp(argv[i], "--gui-lock")) guiLock = true;
 		else if (!strcmp(argv[i], "--autoplay")) autoplay = true;
+		else if (!strcmp(argv[i], "--tempo-real") && i + 1 < argc) tempoReal = atof(argv[++i]);
 		else if (!strcmp(argv[i], "--autoplay-linha") && i + 1 < argc) { autoplay = true; linhaRobo = atoi(argv[++i]); }
 		else if (!strcmp(argv[i], "--glyphs") && i + 1 < argc) {
 			char *spec = argv[++i];
@@ -131,7 +144,7 @@ int main(int argc, char *argv[])
 		else { fprintf(stderr, "opcao desconhecida: %s\n", argv[i]); return 1; }
 	}
 
-	if (guiLock) {
+	if (guiLock || tempoReal > 0) {
 		g_thread_init(NULL);
 		gdk_threads_init();
 	}
@@ -158,6 +171,21 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	if (tempoReal > 0) {
+#ifdef _WIN32
+		timeBeginPeriod(1);
+#endif
+		m.setProcessamento(true);
+		gint64 t0 = g_get_monotonic_time();
+		GThread *t = g_thread_create(processaAutomatico, &m, TRUE, NULL);
+		g_usleep((gulong) (tempoReal * 1e6));
+		m.setProcessamento(false);
+		g_thread_join(t);
+		printf("==== tempo real: %.2f s ====\n", (g_get_monotonic_time() - t0) / 1e6);
+		dumpScreen(m, -1, colors);
+		return 0;
+	}
+
 	auto nextKey = keys.begin();
 	long ciclo = 0;
 	for (; ciclo < maxCycles && !ctrl.halted; ciclo++) {
@@ -167,16 +195,25 @@ int main(int argc, char *argv[])
 		}
 		// Robo: o meio de uma nota (sprite 2) no centro da pista, na linha observada, e
 		// nenhuma outra nota mais abaixo na mesma pista => aperta a tecla da pista.
-		if (autoplay && ctrl.key == 255 && ciclo % 2000 == 0) {
+		// So' aperta se viu a mesma situacao em duas leituras seguidas: assim ignora os
+		// instantes em que o MoveNotas apagou uma nota e ainda nao a redesenhou.
+		if (autoplay && ciclo % 2000 == 0) {
 			static const int centroX[4] = {13, 17, 21, 25};
 			static const char tecla[4] = {'d', 'f', 'j', 'k'};
+			static bool vistoAntes[4] = {false, false, false, false};
 			pixblock *b = m.getPixblock();
+			bool apertou = false;
 			for (int p = 0; p < 4; p++) {
-				if (b[linhaRobo * 40 + centroX[p]].sym / 8 != 2) continue;
-				bool maisBaixa = true;
-				for (int y = linhaRobo + 1; y <= 26; y++)
-					if (b[y * 40 + centroX[p]].sym / 8 == 2) maisBaixa = false;
-				if (maisBaixa) { ctrl.key = tecla[p]; break; }
+				bool alvo = b[linhaRobo * 40 + centroX[p]].sym / 8 == 2;
+				for (int y = linhaRobo + 1; alvo && y <= 28; y++) {
+					int c = b[y * 40 + centroX[p]].sym / 8;
+					if (c == 2 || c == 22 || c == 25) alvo = false;   // nota inteira ou em meia linha
+				}
+				if (alvo && vistoAntes[p] && !apertou && ctrl.key == 255) {
+					ctrl.key = tecla[p];
+					apertou = true;
+				}
+				vistoAntes[p] = alvo;
 			}
 		}
 		g_soundCycle = ciclo;

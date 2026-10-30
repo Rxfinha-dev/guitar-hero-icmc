@@ -8,13 +8,16 @@
 ;   COMO JOGAR
 ;     As notas descem por 4 pistas. Aperte a tecla da pista (D, F, J, K)
 ;     quando a nota estiver sobre o alvo (linha 25 da tela).
-;       - nota exatamente no alvo ........ 10 pontos ("PERFEITO!")
-;       - nota uma linha antes/depois ....  5 pontos ("QUASE")
+;       - nota no alvo, com folga de 1 linha (linhas 24 a 26) ... 10 pontos ("PERFEITO!")
+;       - nota a 2 linhas do alvo (linha 23 ou 27) .............  5 pontos ("QUASE")
+;         (nos dois casos aparece uma faisca no alvo)
 ;       - a cada 10 acertos seguidos o multiplicador sobe (maximo x4)
-;       - deixar a nota passar, ou apertar sem nota, zera o combo
-;     A musica (Ode a Alegria) toca sozinha, sincronizada com as notas.
+;       - deixar a nota passar zera o combo ("ERROU!")
+;       - apertar sem nota na janela preenche o alvo da pista e zera o combo
+;     A musica toca sozinha, sincronizada com as notas.
 ;
-;   No menu, as teclas 1 a 9 escolhem a velocidade e ESPACO comeca.
+;   No menu: teclas 1 a 9 escolhem a velocidade, M troca a musica
+;   (as musicas vem de tools/musicas/*.txt) e ESPACO comeca.
 ;
 ;------------------------------------------------------------------------------
 ;   MODIFICACAO DA ARQUITETURA: instrucao SNDN
@@ -81,8 +84,10 @@ jmp main
 velocidade : var #1             ; nivel de velocidade escolhido no menu (1..9)
 static velocidade + #0, #5
 
-ondaMelodia : var #1            ; forma de onda da musica:
-static ondaMelodia + #0, #2     ; 0 seno, 1 quadrada, 2 triangular, 3 dente de serra
+musicaSel : var #1              ; musica escolhida no menu (0 = primeira da lista)
+musicaAtual : var #1            ; endereco do mapa da musica em jogo = tabMusicas[musicaSel]
+ondaMelodia : var #1            ; forma de onda da musica em jogo = tabOndas[musicaSel]
+                                ; (0 seno, 1 quadrada, 2 triangular, 3 dente de serra)
 
 pontos : var #1                 ; pontuacao (cabe em 16 bits: no maximo ~3000)
 combo : var #1                  ; acertos seguidos
@@ -99,7 +104,13 @@ musicaAcabou : var #1           ; 1 = a ultima nota ja chegou no alvo
 fimContador : var #1            ; frames que faltam para a tela de fim de jogo
 
 msgTimer : var #1               ; frames ate apagar a mensagem (PERFEITO!/ERROU!)
+notasNoMeio : var #1            ; 1 = notas desenhadas meia linha abaixo (2a metade do frame)
 faiscaTimer : var #4            ; frames ate apagar a faisca de cada pista
+pressTimer : var #4             ; frames ate esvaziar o alvo preenchido (tecla sem nota)
+
+; Usados pela TentaAcerto para escolher a nota mais antiga da janela
+acertoSlot : var #1             ; slot da nota escolhida (255 = nenhuma)
+acertoY : var #1                ; linha dela
 
 ; Notas ativas na tela: 16 "slots" em vetores paralelos.
 ; notaY[i] = linha da nota (0 = slot livre); notaPista[i] = pista 0..3
@@ -131,21 +142,11 @@ static bitPista + #1, #2
 static bitPista + #2, #4
 static bitPista + #3, #8
 
-; Velocidade. Cada frame do jogo espera tabDelay[nivel] voltas do laco externo
-; do Delay; cada volta executa ~5000 instrucoes. tabMsFrame[nivel] e' a duracao
-; estimada de um frame em ms (usada para a duracao das notas da musica),
-; calibrada para ~20 milhoes de instrucoes por segundo.
-tabDelay : var #10
-static tabDelay + #1, #800
-static tabDelay + #2, #600
-static tabDelay + #3, #450
-static tabDelay + #4, #340
-static tabDelay + #5, #260
-static tabDelay + #6, #200
-static tabDelay + #7, #150
-static tabDelay + #8, #120
-static tabDelay + #9, #90
-
+; Velocidade: duracao de um frame do jogo, em ms, para cada nivel (1..9).
+; O simulador roda com clock fixo de 5 MHz (CLOCK_HZ em Mneumonicos.h), e cada
+; volta do laco externo do Delay executa 5000 instrucoes = exatamente 1 ms.
+; Por isso a mesma tabela da' o tamanho do Delay E a duracao das notas da musica,
+; e o som fica sincronizado com as notas na tela.
 tabMsFrame : var #10
 static tabMsFrame + #1, #200
 static tabMsFrame + #2, #150
@@ -185,7 +186,7 @@ static traduz + #120, #2374     ; 'x' letra F vermelha         (70 + vermelho)
 static traduz + #121, #2890     ; 'y' letra J amarela          (74 + amarelo)
 static traduz + #122, #3147     ; 'z' letra K azul             (75 + azul)
 
-; Mensagens da linha 27 (exatamente 15 caracteres: a largura das pistas)
+; Mensagens da linha 28 (exatamente 15 caracteres: a largura das pistas)
 msgPerfeito : string "   PERFEITO!   "
 msgQuase    : string "     QUASE     "
 msgErrou    : string "    ERROU!     "
@@ -202,9 +203,9 @@ telaL01 : string "v         s GUITAR HERO ICMC s         v"
 telaL02 : string "vhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhv"
 telaL03 : string "v          p   p   p   p   p           v"
 telaL04 : string "v MUSICA   p   p   p   p   p PONTOS    v"
-telaL05 : string "v ODE A    p   p   p   p   p  00000    v"
-telaL06 : string "v ALEGRIA  p   p   p   p   p           v"
-telaL07 : string "v BEETHOVENp   p   p   p   p COMBO     v"
+telaL05 : string "v          p   p   p   p   p  00000    v"
+telaL06 : string "v          p   p   p   p   p           v"
+telaL07 : string "v          p   p   p   p   p COMBO     v"
 telaL08 : string "v          p   p   p   p   p  000      v"
 telaL09 : string "v          p   p   p   p   p           v"
 telaL10 : string "v TECLAS   p   p   p   p   p MULT      v"
@@ -246,14 +247,14 @@ menuL12 : string "v  AS NOTAS DESCEM PELAS 4 PISTAS.     v"
 menuL13 : string "v  APERTE A TECLA DA PISTA QUANDO A    v"
 menuL14 : string "v  NOTA ESTIVER SOBRE O ALVO.          v"
 menuL15 : string "v                                      v"
-menuL16 : string "v  NO ALVO ............ 10 PONTOS      v"
-menuL17 : string "v  QUASE (1 LINHA) ..... 5 PONTOS      v"
+menuL16 : string "v  NO ALVO (1 LINHA DE FOLGA) 10 PONTOSv"
+menuL17 : string "v  QUASE (2 LINHAS) .......... 5 PONTOSv"
 menuL18 : string "v  10 ACERTOS SEGUIDOS SOBEM O         v"
 menuL19 : string "v  MULTIPLICADOR (ATE X4).             v"
 menuL20 : string "v                                      v"
 menuL21 : string "v  VELOCIDADE: 5   (TECLAS 1 A 9)      v"
-menuL22 : string "v                                      v"
-menuL23 : string "v  ESPACO: COMECAR A MUSICA            v"
+menuL22 : string "v  MUSICA:                             v"
+menuL23 : string "v  M: TROCA A MUSICA   ESPACO: COMECAR v"
 menuL24 : string "v                                      v"
 menuL25 : string "v  NOVA INSTRUCAO SNDN: A MUSICA TOCA  v"
 menuL26 : string "v  SEM TRAVAR O PROCESSADOR.           v"
@@ -276,71 +277,258 @@ fimL09 : string "v ESPACO: DE NOVO    v"
 fimL10 : string "chhhhhhhhhhhhhhhhhhhhd"
 ; <<< TELA fimL
 
-; >>> MUSICA  (gerado por tools/gera_musica.py a partir de tools/musicas/ode_alegria.txt - nao edite a mao)
-musica : var #385        ; 1 palavra por frame + marcador de fim
-static musica + #0, #6420		; pistas J    nota E4   6 frames
-static musica + #6, #6420		; pistas J    nota E4   6 frames
-static musica + #12, #6440		; pistas K    nota F4   6 frames
-static musica + #18, #6472		; pistas K    nota G4   6 frames
-static musica + #24, #6472		; pistas K    nota G4   6 frames
-static musica + #30, #6440		; pistas K    nota F4   6 frames
-static musica + #36, #6420		; pistas J    nota E4   6 frames
-static musica + #42, #6386		; pistas F    nota D4   6 frames
-static musica + #48, #6353		; pistas D    nota C4   6 frames
-static musica + #54, #6353		; pistas D    nota C4   6 frames
-static musica + #60, #6386		; pistas F    nota D4   6 frames
-static musica + #66, #6420		; pistas J    nota E4   6 frames
-static musica + #72, #9492		; pistas J    nota E4   9 frames
-static musica + #81, #3314		; pistas F    nota D4   3 frames
-static musica + #84, #12530		; pistas F    nota D4   12 frames
-static musica + #96, #6420		; pistas J    nota E4   6 frames
-static musica + #102, #6420		; pistas J    nota E4   6 frames
-static musica + #108, #6440		; pistas K    nota F4   6 frames
-static musica + #114, #6472		; pistas K    nota G4   6 frames
-static musica + #120, #6472		; pistas K    nota G4   6 frames
-static musica + #126, #6440		; pistas K    nota F4   6 frames
-static musica + #132, #6420		; pistas J    nota E4   6 frames
-static musica + #138, #6386		; pistas F    nota D4   6 frames
-static musica + #144, #6353		; pistas D    nota C4   6 frames
-static musica + #150, #6353		; pistas D    nota C4   6 frames
-static musica + #156, #6386		; pistas F    nota D4   6 frames
-static musica + #162, #6420		; pistas J    nota E4   6 frames
-static musica + #168, #9458		; pistas F    nota D4   9 frames
-static musica + #177, #3281		; pistas D    nota C4   3 frames
-static musica + #180, #12497		; pistas D    nota C4   12 frames
-static musica + #192, #6386		; pistas F    nota D4   6 frames
-static musica + #198, #6386		; pistas F    nota D4   6 frames
-static musica + #204, #6420		; pistas J    nota E4   6 frames
-static musica + #210, #6353		; pistas D    nota C4   6 frames
-static musica + #216, #6386		; pistas F    nota D4   6 frames
-static musica + #222, #3348		; pistas J    nota E4   3 frames
-static musica + #225, #3368		; pistas K    nota F4   3 frames
-static musica + #228, #6420		; pistas J    nota E4   6 frames
-static musica + #234, #6353		; pistas D    nota C4   6 frames
-static musica + #240, #6386		; pistas F    nota D4   6 frames
-static musica + #246, #3348		; pistas J    nota E4   3 frames
-static musica + #249, #3368		; pistas K    nota F4   3 frames
-static musica + #252, #6420		; pistas J    nota E4   6 frames
-static musica + #258, #6386		; pistas F    nota D4   6 frames
-static musica + #264, #6353		; pistas D    nota C4   6 frames
-static musica + #270, #6386		; pistas F    nota D4   6 frames
-static musica + #276, #12417		; pistas D    nota G3   12 frames
-static musica + #288, #6420		; pistas J    nota E4   6 frames
-static musica + #294, #6420		; pistas J    nota E4   6 frames
-static musica + #300, #6440		; pistas K    nota F4   6 frames
-static musica + #306, #6472		; pistas K    nota G4   6 frames
-static musica + #312, #6472		; pistas K    nota G4   6 frames
-static musica + #318, #6440		; pistas K    nota F4   6 frames
-static musica + #324, #6420		; pistas J    nota E4   6 frames
-static musica + #330, #6386		; pistas F    nota D4   6 frames
-static musica + #336, #6353		; pistas D    nota C4   6 frames
-static musica + #342, #6353		; pistas D    nota C4   6 frames
-static musica + #348, #6386		; pistas F    nota D4   6 frames
-static musica + #354, #6420		; pistas J    nota E4   6 frames
-static musica + #360, #9458		; pistas F    nota D4   9 frames
-static musica + #369, #3281		; pistas D    nota C4   3 frames
-static musica + #372, #12505		; pistas DK   nota C4   12 frames
-static musica + #384, #65535		; fim da musica
+; >>> MUSICA  (gerado por tools/gera_musica.py - nao edite a mao)
+; Musicas, na ordem do menu: ODE A ALEGRIA, ARPEJO EM LA MENOR, MINHA MUSICA
+numMusicas : var #1
+static numMusicas + #0, #3
+tabMusicas : var #3           ; endereco do mapa de cada musica
+static tabMusicas + #0, #musica0
+static tabMusicas + #1, #musica1
+static tabMusicas + #2, #musica2
+tabOndas : var #3             ; forma de onda de cada musica
+static tabOndas + #0, #2
+static tabOndas + #1, #1
+static tabOndas + #2, #1
+tabNomes : var #3             ; nome no menu (20 caracteres)
+static tabNomes + #0, #nomeMusica0
+static tabNomes + #1, #nomeMusica1
+static tabNomes + #2, #nomeMusica2
+tabPainel : var #3            ; 3 linhas do painel (9 caracteres + \0 cada = 10 palavras)
+static tabPainel + #0, #painel0L0
+static tabPainel + #1, #painel1L0
+static tabPainel + #2, #painel2L0
+
+; ---- musica 0: ODE A ALEGRIA (tools/musicas/ode_alegria.txt) ----
+nomeMusica0 : string "ODE A ALEGRIA       "
+painel0L0 : string "ODE A    "
+painel0L1 : string "ALEGRIA  "
+painel0L2 : string "BEETHOVEN"
+musica0 : var #385        ; 1 palavra por frame + marcador de fim
+static musica0 + #0, #6420		; pistas J    nota E4   6 frames
+static musica0 + #6, #6420		; pistas J    nota E4   6 frames
+static musica0 + #12, #6440		; pistas K    nota F4   6 frames
+static musica0 + #18, #6472		; pistas K    nota G4   6 frames
+static musica0 + #24, #6472		; pistas K    nota G4   6 frames
+static musica0 + #30, #6440		; pistas K    nota F4   6 frames
+static musica0 + #36, #6420		; pistas J    nota E4   6 frames
+static musica0 + #42, #6386		; pistas F    nota D4   6 frames
+static musica0 + #48, #6353		; pistas D    nota C4   6 frames
+static musica0 + #54, #6353		; pistas D    nota C4   6 frames
+static musica0 + #60, #6386		; pistas F    nota D4   6 frames
+static musica0 + #66, #6420		; pistas J    nota E4   6 frames
+static musica0 + #72, #9492		; pistas J    nota E4   9 frames
+static musica0 + #81, #3314		; pistas F    nota D4   3 frames
+static musica0 + #84, #12530		; pistas F    nota D4   12 frames
+static musica0 + #96, #6420		; pistas J    nota E4   6 frames
+static musica0 + #102, #6420		; pistas J    nota E4   6 frames
+static musica0 + #108, #6440		; pistas K    nota F4   6 frames
+static musica0 + #114, #6472		; pistas K    nota G4   6 frames
+static musica0 + #120, #6472		; pistas K    nota G4   6 frames
+static musica0 + #126, #6440		; pistas K    nota F4   6 frames
+static musica0 + #132, #6420		; pistas J    nota E4   6 frames
+static musica0 + #138, #6386		; pistas F    nota D4   6 frames
+static musica0 + #144, #6353		; pistas D    nota C4   6 frames
+static musica0 + #150, #6353		; pistas D    nota C4   6 frames
+static musica0 + #156, #6386		; pistas F    nota D4   6 frames
+static musica0 + #162, #6420		; pistas J    nota E4   6 frames
+static musica0 + #168, #9458		; pistas F    nota D4   9 frames
+static musica0 + #177, #3281		; pistas D    nota C4   3 frames
+static musica0 + #180, #12497		; pistas D    nota C4   12 frames
+static musica0 + #192, #6386		; pistas F    nota D4   6 frames
+static musica0 + #198, #6386		; pistas F    nota D4   6 frames
+static musica0 + #204, #6420		; pistas J    nota E4   6 frames
+static musica0 + #210, #6353		; pistas D    nota C4   6 frames
+static musica0 + #216, #6386		; pistas F    nota D4   6 frames
+static musica0 + #222, #3348		; pistas J    nota E4   3 frames
+static musica0 + #225, #3368		; pistas K    nota F4   3 frames
+static musica0 + #228, #6420		; pistas J    nota E4   6 frames
+static musica0 + #234, #6353		; pistas D    nota C4   6 frames
+static musica0 + #240, #6386		; pistas F    nota D4   6 frames
+static musica0 + #246, #3348		; pistas J    nota E4   3 frames
+static musica0 + #249, #3368		; pistas K    nota F4   3 frames
+static musica0 + #252, #6420		; pistas J    nota E4   6 frames
+static musica0 + #258, #6386		; pistas F    nota D4   6 frames
+static musica0 + #264, #6353		; pistas D    nota C4   6 frames
+static musica0 + #270, #6386		; pistas F    nota D4   6 frames
+static musica0 + #276, #12417		; pistas D    nota G3   12 frames
+static musica0 + #288, #6420		; pistas J    nota E4   6 frames
+static musica0 + #294, #6420		; pistas J    nota E4   6 frames
+static musica0 + #300, #6440		; pistas K    nota F4   6 frames
+static musica0 + #306, #6472		; pistas K    nota G4   6 frames
+static musica0 + #312, #6472		; pistas K    nota G4   6 frames
+static musica0 + #318, #6440		; pistas K    nota F4   6 frames
+static musica0 + #324, #6420		; pistas J    nota E4   6 frames
+static musica0 + #330, #6386		; pistas F    nota D4   6 frames
+static musica0 + #336, #6353		; pistas D    nota C4   6 frames
+static musica0 + #342, #6353		; pistas D    nota C4   6 frames
+static musica0 + #348, #6386		; pistas F    nota D4   6 frames
+static musica0 + #354, #6420		; pistas J    nota E4   6 frames
+static musica0 + #360, #9458		; pistas F    nota D4   9 frames
+static musica0 + #369, #3281		; pistas D    nota C4   3 frames
+static musica0 + #372, #12505		; pistas DK   nota C4   12 frames
+static musica0 + #384, #65535		; fim da musica
+
+; ---- musica 1: ARPEJO EM LA MENOR (tools/musicas/arpejo_la_menor.txt) ----
+nomeMusica1 : string "ARPEJO EM LA MENOR  "
+painel1L0 : string "ARPEJO   "
+painel1L1 : string "EM LA    "
+painel1L2 : string "MENOR    "
+musica1 : var #653        ; 1 palavra por frame + marcador de fim
+static musica1 + #0, #4450		; pistas F    nota A4   4 frames
+static musica1 + #4, #4500		; pistas J    nota C5   4 frames
+static musica1 + #8, #4568		; pistas K    nota E5   4 frames
+static musica1 + #12, #4450		; pistas F    nota A4   4 frames
+static musica1 + #16, #4532		; pistas J    nota D5   4 frames
+static musica1 + #20, #4500		; pistas J    nota C5   4 frames
+static musica1 + #24, #4482		; pistas F    nota B4   4 frames
+static musica1 + #28, #4500		; pistas J    nota C5   4 frames
+static musica1 + #32, #4385		; pistas D    nota F4   4 frames
+static musica1 + #36, #4450		; pistas F    nota A4   4 frames
+static musica1 + #40, #4500		; pistas J    nota C5   4 frames
+static musica1 + #44, #4385		; pistas D    nota F4   4 frames
+static musica1 + #48, #4532		; pistas J    nota D5   4 frames
+static musica1 + #52, #4500		; pistas J    nota C5   4 frames
+static musica1 + #56, #4450		; pistas F    nota A4   4 frames
+static musica1 + #60, #4500		; pistas J    nota C5   4 frames
+static musica1 + #64, #4417		; pistas D    nota G4   4 frames
+static musica1 + #68, #4482		; pistas F    nota B4   4 frames
+static musica1 + #72, #4532		; pistas J    nota D5   4 frames
+static musica1 + #76, #4417		; pistas D    nota G4   4 frames
+static musica1 + #80, #4568		; pistas K    nota E5   4 frames
+static musica1 + #84, #4532		; pistas J    nota D5   4 frames
+static musica1 + #88, #4482		; pistas F    nota B4   4 frames
+static musica1 + #92, #4532		; pistas J    nota D5   4 frames
+static musica1 + #96, #4369		; pistas D    nota E4   4 frames
+static musica1 + #100, #4417		; pistas D    nota G4   4 frames
+static musica1 + #104, #4482		; pistas F    nota B4   4 frames
+static musica1 + #108, #8664		; pistas K    nota E5   8 frames
+static musica1 + #116, #4532		; pistas J    nota D5   4 frames
+static musica1 + #120, #8578		; pistas F    nota B4   8 frames
+static musica1 + #128, #4450		; pistas F    nota A4   4 frames
+static musica1 + #132, #4500		; pistas J    nota C5   4 frames
+static musica1 + #136, #4568		; pistas K    nota E5   4 frames
+static musica1 + #140, #4450		; pistas F    nota A4   4 frames
+static musica1 + #144, #4532		; pistas J    nota D5   4 frames
+static musica1 + #148, #4500		; pistas J    nota C5   4 frames
+static musica1 + #152, #4482		; pistas F    nota B4   4 frames
+static musica1 + #156, #4500		; pistas J    nota C5   4 frames
+static musica1 + #160, #4385		; pistas D    nota F4   4 frames
+static musica1 + #164, #4450		; pistas F    nota A4   4 frames
+static musica1 + #168, #4500		; pistas J    nota C5   4 frames
+static musica1 + #172, #4385		; pistas D    nota F4   4 frames
+static musica1 + #176, #4532		; pistas J    nota D5   4 frames
+static musica1 + #180, #4500		; pistas J    nota C5   4 frames
+static musica1 + #184, #4450		; pistas F    nota A4   4 frames
+static musica1 + #188, #4500		; pistas J    nota C5   4 frames
+static musica1 + #192, #4417		; pistas D    nota G4   4 frames
+static musica1 + #196, #4482		; pistas F    nota B4   4 frames
+static musica1 + #200, #4532		; pistas J    nota D5   4 frames
+static musica1 + #204, #4417		; pistas D    nota G4   4 frames
+static musica1 + #208, #4568		; pistas K    nota E5   4 frames
+static musica1 + #212, #4532		; pistas J    nota D5   4 frames
+static musica1 + #216, #4482		; pistas F    nota B4   4 frames
+static musica1 + #220, #4532		; pistas J    nota D5   4 frames
+static musica1 + #224, #4369		; pistas D    nota E4   4 frames
+static musica1 + #228, #4417		; pistas D    nota G4   4 frames
+static musica1 + #232, #4482		; pistas F    nota B4   4 frames
+static musica1 + #236, #4532		; pistas J    nota D5   4 frames
+static musica1 + #240, #12760		; pistas K    nota E5   12 frames
+static musica1 + #256, #8664		; pistas K    nota E5   8 frames
+static musica1 + #264, #4532		; pistas J    nota D5   4 frames
+static musica1 + #268, #4500		; pistas J    nota C5   4 frames
+static musica1 + #272, #8628		; pistas J    nota D5   8 frames
+static musica1 + #280, #8664		; pistas K    nota E5   8 frames
+static musica1 + #288, #12692		; pistas J    nota C5   12 frames
+static musica1 + #300, #4450		; pistas F    nota A4   4 frames
+static musica1 + #304, #8596		; pistas J    nota C5   8 frames
+static musica1 + #312, #8628		; pistas J    nota D5   8 frames
+static musica1 + #320, #8578		; pistas F    nota B4   8 frames
+static musica1 + #328, #4417		; pistas D    nota G4   4 frames
+static musica1 + #332, #4482		; pistas F    nota B4   4 frames
+static musica1 + #336, #8628		; pistas J    nota D5   8 frames
+static musica1 + #344, #8664		; pistas K    nota E5   8 frames
+static musica1 + #352, #12760		; pistas K    nota E5   12 frames
+static musica1 + #376, #8578		; pistas F    nota B4   8 frames
+static musica1 + #384, #8664		; pistas K    nota E5   8 frames
+static musica1 + #392, #4532		; pistas J    nota D5   4 frames
+static musica1 + #396, #4500		; pistas J    nota C5   4 frames
+static musica1 + #400, #8628		; pistas J    nota D5   8 frames
+static musica1 + #408, #8664		; pistas K    nota E5   8 frames
+static musica1 + #416, #8680		; pistas K    nota F5   8 frames
+static musica1 + #424, #4568		; pistas K    nota E5   4 frames
+static musica1 + #428, #4532		; pistas J    nota D5   4 frames
+static musica1 + #432, #8596		; pistas J    nota C5   8 frames
+static musica1 + #440, #8546		; pistas F    nota A4   8 frames
+static musica1 + #448, #8578		; pistas F    nota B4   8 frames
+static musica1 + #456, #4500		; pistas J    nota C5   4 frames
+static musica1 + #460, #4532		; pistas J    nota D5   4 frames
+static musica1 + #464, #8664		; pistas K    nota E5   8 frames
+static musica1 + #472, #8712		; pistas K    nota G5   8 frames
+static musica1 + #480, #12844		; pistas JK   nota A5   12 frames
+static musica1 + #512, #4450		; pistas F    nota A4   4 frames
+static musica1 + #516, #4500		; pistas J    nota C5   4 frames
+static musica1 + #520, #4568		; pistas K    nota E5   4 frames
+static musica1 + #524, #4450		; pistas F    nota A4   4 frames
+static musica1 + #528, #4532		; pistas J    nota D5   4 frames
+static musica1 + #532, #4500		; pistas J    nota C5   4 frames
+static musica1 + #536, #4482		; pistas F    nota B4   4 frames
+static musica1 + #540, #4500		; pistas J    nota C5   4 frames
+static musica1 + #544, #4385		; pistas D    nota F4   4 frames
+static musica1 + #548, #4450		; pistas F    nota A4   4 frames
+static musica1 + #552, #4500		; pistas J    nota C5   4 frames
+static musica1 + #556, #4385		; pistas D    nota F4   4 frames
+static musica1 + #560, #4532		; pistas J    nota D5   4 frames
+static musica1 + #564, #4500		; pistas J    nota C5   4 frames
+static musica1 + #568, #4450		; pistas F    nota A4   4 frames
+static musica1 + #572, #4500		; pistas J    nota C5   4 frames
+static musica1 + #576, #4417		; pistas D    nota G4   4 frames
+static musica1 + #580, #4482		; pistas F    nota B4   4 frames
+static musica1 + #584, #4532		; pistas J    nota D5   4 frames
+static musica1 + #588, #4417		; pistas D    nota G4   4 frames
+static musica1 + #592, #4568		; pistas K    nota E5   4 frames
+static musica1 + #596, #4532		; pistas J    nota D5   4 frames
+static musica1 + #600, #4482		; pistas F    nota B4   4 frames
+static musica1 + #604, #4532		; pistas J    nota D5   4 frames
+static musica1 + #608, #4369		; pistas D    nota E4   4 frames
+static musica1 + #612, #4417		; pistas D    nota G4   4 frames
+static musica1 + #616, #4482		; pistas F    nota B4   4 frames
+static musica1 + #620, #8664		; pistas K    nota E5   8 frames
+static musica1 + #628, #4532		; pistas J    nota D5   4 frames
+static musica1 + #632, #8578		; pistas F    nota B4   8 frames
+static musica1 + #640, #12650		; pistas FK   nota A4   12 frames
+static musica1 + #652, #65535		; fim da musica
+
+; ---- musica 2: MINHA MUSICA (tools/musicas/minha_musica.txt) ----
+nomeMusica2 : string "MINHA MUSICA        "
+painel2L0 : string "MINHA    "
+painel2L1 : string "MUSICA   "
+painel2L2 : string "         "
+musica2 : var #125        ; 1 palavra por frame + marcador de fim
+static musica2 + #0, #4257		; pistas D    nota A3   4 frames
+static musica2 + #4, #4306		; pistas F    nota C4   4 frames
+static musica2 + #8, #4372		; pistas J    nota E4   4 frames
+static musica2 + #12, #4424		; pistas K    nota G4   4 frames
+static musica2 + #16, #4372		; pistas J    nota E4   4 frames
+static musica2 + #20, #4306		; pistas F    nota C4   4 frames
+static musica2 + #24, #8353		; pistas D    nota A3   8 frames
+static musica2 + #32, #4388		; pistas J    nota F4   4 frames
+static musica2 + #36, #4372		; pistas J    nota E4   4 frames
+static musica2 + #40, #4338		; pistas F    nota D4   4 frames
+static musica2 + #44, #4306		; pistas F    nota C4   4 frames
+static musica2 + #48, #8434		; pistas F    nota D4   8 frames
+static musica2 + #64, #4257		; pistas D    nota A3   4 frames
+static musica2 + #68, #4306		; pistas F    nota C4   4 frames
+static musica2 + #72, #4372		; pistas J    nota E4   4 frames
+static musica2 + #76, #4424		; pistas K    nota G4   4 frames
+static musica2 + #80, #4372		; pistas J    nota E4   4 frames
+static musica2 + #84, #4306		; pistas F    nota C4   4 frames
+static musica2 + #88, #8353		; pistas D    nota A3   8 frames
+static musica2 + #96, #4338		; pistas F    nota D4   4 frames
+static musica2 + #100, #4372		; pistas J    nota E4   4 frames
+static musica2 + #104, #4388		; pistas J    nota F4   4 frames
+static musica2 + #108, #4372		; pistas J    nota E4   4 frames
+static musica2 + #112, #12453		; pistas DJ   nota A3   12 frames
+static musica2 + #124, #65535		; fim da musica
 
 ; freqs[i] = frequencia em Hz da nota de indice i (indice 1 = C3, sobe de semitom em semitom)
 freqs : var #64
@@ -419,10 +607,11 @@ main:
 
 ; Cada volta deste laco e' um frame do jogo.
 LoopJogo:
+	call AtualizaEfeitos        ; apaga mensagens e faiscas antigas (ANTES de desenhar
+	                            ; as notas: senao o alvo restaurado cobriria uma nota)
 	call MoveNotas              ; desce as notas uma linha; nota que passou = erro
 	call SpawnNotas             ; cria as notas deste frame no topo das pistas
 	call TocaMelodia            ; toca a nota que esta chegando no alvo (SNDN)
-	call AtualizaEfeitos        ; apaga mensagens e faiscas antigas
 	call AtualizaHUD            ; redesenha o placar, se mudou
 	call Delay                  ; espera o tempo do frame lendo o teclado
 
@@ -449,7 +638,7 @@ LoopJogo:
 
 ;------------------------------------------------------------------------------
 ; Menu: desenha a tela inicial e espera o jogador.
-;   Teclas 1..9 mudam a velocidade; ESPACO retorna para comecar o jogo.
+;   Teclas 1..9 mudam a velocidade; M troca a musica; ESPACO comeca o jogo.
 ;------------------------------------------------------------------------------
 Menu:
 	push r0
@@ -462,6 +651,7 @@ Menu:
 	loadn r0, #132              ; titulo colorido (linha 3, coluna 12)
 	call DesenhaTitulo
 	call MostraVelocidadeMenu
+	call MostraMusicaMenu
 
 	loadn r3, #255
 Menu_espera:
@@ -471,6 +661,12 @@ Menu_espera:
 	loadn r1, #' '
 	cmp r0, r1
 	jeq Menu_fim                ; ESPACO: comeca
+	loadn r1, #'m'
+	cmp r0, r1
+	jeq Menu_trocaMusica
+	loadn r1, #'M'
+	cmp r0, r1
+	jeq Menu_trocaMusica
 	loadn r1, #'1'
 	cmp r0, r1
 	jle Menu_espera             ; menor que '1': ignora
@@ -481,6 +677,15 @@ Menu_espera:
 	sub r0, r0, r1              ; converte o caractere no numero 1..9
 	store velocidade, r0
 	call MostraVelocidadeMenu
+	jmp Menu_espera
+
+Menu_trocaMusica:                   ; proxima musica da lista, voltando para a primeira
+	load r0, musicaSel
+	inc r0
+	load r1, numMusicas
+	mod r0, r0, r1
+	store musicaSel, r0
+	call MostraMusicaMenu
 	jmp Menu_espera
 
 Menu_fim:
@@ -504,6 +709,27 @@ MostraVelocidadeMenu:
 	call ImprimeNumero
 	pop r3
 	pop r2
+	pop r1
+	pop r0
+	rts
+
+;------------------------------------------------------------------------------
+; MostraMusicaMenu: escreve o nome da musica escolhida na linha 22 do menu.
+;   Os nomes tem sempre 20 caracteres (completados com espacos pelo gerador),
+;   entao o nome novo cobre o anterior por inteiro.
+;------------------------------------------------------------------------------
+MostraMusicaMenu:
+	push r0
+	push r1
+	push r3
+	load r0, musicaSel
+	loadn r1, #tabNomes
+	add r1, r1, r0
+	loadi r1, r1                ; r1 = endereco do nome da musica
+	loadn r0, #891              ; linha 22, coluna 11
+	loadn r3, #2816             ; amarelo
+	call ImprimeStrT
+	pop r3
 	pop r1
 	pop r0
 	rts
@@ -543,6 +769,7 @@ IniciaJogo:
 	store musicaAcabou, r0
 	store fimContador, r0
 	store msgTimer, r0
+	store notasNoMeio, r0
 	loadn r0, #1
 	store mult, r0
 
@@ -556,9 +783,10 @@ IniciaJogo_zeraNotas:
 	dec r1
 	jnz IniciaJogo_zeraNotas
 
-	; apaga as faiscas das 4 pistas
+	; apaga as faiscas e os alvos preenchidos das 4 pistas
+	; (faiscaTimer e pressTimer sao vizinhos na memoria: 8 palavras seguidas)
 	loadn r0, #faiscaTimer
-	loadn r1, #4
+	loadn r1, #8
 IniciaJogo_zeraFaiscas:
 	storei r0, r2
 	inc r0
@@ -578,6 +806,36 @@ IniciaJogo_zeraFaiscas:
 	loadn r2, #1
 	loadn r3, #2816
 	call ImprimeNumero
+
+	; musica escolhida: endereco do mapa e forma de onda
+	load r0, musicaSel
+	loadn r1, #tabMusicas
+	add r1, r1, r0
+	loadi r1, r1
+	store musicaAtual, r1
+	loadn r1, #tabOndas
+	add r1, r1, r0
+	loadi r1, r1
+	store ondaMelodia, r1
+
+	; nome da musica no painel esquerdo: 3 strings de 9 caracteres (+ \0),
+	; nas linhas 5, 6 e 7, colunas 2 a 10 (alinhado com o rotulo MUSICA)
+	loadn r1, #tabPainel
+	add r1, r1, r0
+	loadi r1, r1                ; r1 = endereco da 1a linha do nome
+	loadn r0, #202              ; linha 5, coluna 2
+	loadn r2, #3                ; 3 linhas
+	loadn r3, #0                ; branco
+IniciaJogo_nome:
+	call ImprimeStrT
+	push r2
+	loadn r2, #40
+	add r0, r0, r2              ; proxima linha da tela
+	loadn r2, #10
+	add r1, r1, r2              ; proxima string (9 caracteres + \0)
+	pop r2
+	dec r2
+	jnz IniciaJogo_nome
 
 	loadn r0, #1
 	store hudSujo, r0
@@ -613,7 +871,7 @@ MoveNotas_laco:
 	call ApagaNota              ; apaga na linha atual (antes de mudar Y)
 	inc r2
 	storei r1, r2               ; notaY[slot]++
-	loadn r3, #26
+	loadn r3, #27               ; linha 27 = ultima chance ("QUASE")
 	cmp r2, r3
 	jgr MoveNotas_perdeu        ; passou do alvo sem ser acertada
 	call DesenhaNota
@@ -628,6 +886,9 @@ MoveNotas_prox:
 	inc r0
 	cmp r0, r4
 	jne MoveNotas_laco
+
+	loadn r3, #0
+	store notasNoMeio, r3       ; todas as notas estao alinhadas de novo
 
 	pop r4
 	pop r3
@@ -653,7 +914,7 @@ SpawnNotas:
 	jne SpawnNotas_fim          ; a musica ja terminou de soltar notas
 
 	load r1, frame
-	loadn r2, #musica
+	load r2, musicaAtual        ; endereco do mapa da musica escolhida
 	add r2, r2, r1
 	loadi r3, r2                ; r3 = palavra do mapa para este frame
 	loadn r4, #65535
@@ -796,12 +1057,15 @@ DesenhaNota:
 ;------------------------------------------------------------------------------
 ; ApagaNota: apaga a nota de um slot redesenhando o cenario por baixo dela
 ; (assim a divisoria, o alvo e as letras das teclas reaparecem).
+; Se as notas estao em meia linha (notasNoMeio = 1), apaga as duas linhas
+; que a nota ocupa.
 ;   r0 = slot
 ;------------------------------------------------------------------------------
 ApagaNota:
 	push r0
 	push r1
 	push r2
+	push r3
 
 	call PosicaoNota            ; r1 = posicao
 	mov r0, r1
@@ -811,6 +1075,106 @@ ApagaNota:
 	inc r0
 	call RestauraCenario
 
+	load r2, notasNoMeio
+	loadn r3, #0
+	cmp r2, r3
+	jeq ApagaNota_fim           ; nota alinhada: so' uma linha
+	loadn r3, #1080             ; linha 27 * 40: nessa linha a nota nao desce meia
+	cmp r1, r3                  ; linha (a linha 28 e' das mensagens)
+	jeg ApagaNota_fim
+	loadn r3, #40
+	add r0, r1, r3              ; mesma coluna, linha de baixo
+	call RestauraCenario
+	inc r0
+	call RestauraCenario
+	inc r0
+	call RestauraCenario
+
+ApagaNota_fim:
+	pop r3
+	pop r2
+	pop r1
+	pop r0
+	rts
+
+;------------------------------------------------------------------------------
+; DesenhaNotaMeia: desenha a nota de um slot meia linha (4 pixels) abaixo da
+; posicao dela: a parte de cima da nota no fundo da linha Y e a parte de baixo
+; no topo da linha Y+1 (sprites 21..26). So' muda o desenho, nao a linha logica.
+;   r0 = slot
+;------------------------------------------------------------------------------
+DesenhaNotaMeia:
+	push r1
+	push r2
+	push r3
+	push r4
+
+	call PosicaoNota            ; r1 = posicao, r2 = cor
+	loadn r3, #21               ; NOTA_ESQ_MEIA_CIMA
+	add r3, r3, r2
+	outchar r3, r1
+	inc r1
+	inc r3                      ; NOTA_MEIO_MEIA_CIMA (22)
+	outchar r3, r1
+	inc r1
+	inc r3                      ; NOTA_DIR_MEIA_CIMA (23)
+	outchar r3, r1
+
+	loadn r4, #38
+	add r1, r1, r4              ; linha de baixo, primeira coluna (+40 -2)
+	loadn r3, #24               ; NOTA_ESQ_MEIA_BAIXO
+	add r3, r3, r2
+	outchar r3, r1
+	inc r1
+	inc r3                      ; NOTA_MEIO_MEIA_BAIXO (25)
+	outchar r3, r1
+	inc r1
+	inc r3                      ; NOTA_DIR_MEIA_BAIXO (26)
+	outchar r3, r1
+
+	pop r4
+	pop r3
+	pop r2
+	pop r1
+	rts
+
+;------------------------------------------------------------------------------
+; MeioPasso: na metade de cada frame, redesenha todas as notas meia linha
+; abaixo. Assim cada nota anda 4 pixels por vez em vez de 8 (uma linha inteira
+; = 8 pixels do charmap), com o dobro de quadros: a animacao fica mais suave.
+; A linha logica (notaY) so' muda no MoveNotas; a janela de acerto nao muda.
+;------------------------------------------------------------------------------
+MeioPasso:
+	push r0
+	push r1
+	push r2
+	push r3
+	push r4
+
+	loadn r0, #0                ; r0 = slot
+	loadn r4, #16
+MeioPasso_laco:
+	loadn r1, #notaY
+	add r1, r1, r0
+	loadi r2, r1                ; r2 = linha da nota
+	loadn r3, #0
+	cmp r2, r3
+	jeq MeioPasso_prox          ; slot livre
+	loadn r3, #27
+	cmp r2, r3
+	jeg MeioPasso_prox          ; linha 27 fica inteira (a 28 e' das mensagens)
+	call ApagaNota              ; notasNoMeio ainda e' 0: apaga so' a linha Y
+	call DesenhaNotaMeia
+MeioPasso_prox:
+	inc r0
+	cmp r0, r4
+	jne MeioPasso_laco
+
+	loadn r0, #1
+	store notasNoMeio, r0
+
+	pop r4
+	pop r3
 	pop r2
 	pop r1
 	pop r0
@@ -841,7 +1205,7 @@ TocaMelodia:
 	cmp r0, r1
 	jle TocaMelodia_fim         ; frame < 22: nenhuma nota chegou ainda
 	sub r0, r0, r1              ; r0 = indice no mapa = frame - 22
-	loadn r1, #musica
+	load r1, musicaAtual
 	add r1, r1, r0
 	loadi r2, r1                ; r2 = palavra do mapa
 
@@ -885,34 +1249,60 @@ TocaMelodia_fim:
 	rts
 
 ;------------------------------------------------------------------------------
-; Delay: espera o tempo de um frame. A cada volta do laco interno le o
-; teclado, e a tecla e' tratada na hora (assim nenhuma tecla se perde, mesmo
-; com frames longos). O laco interno tem 5 instrucoes; 1000 voltas = 5000.
+; Delay: espera o tempo de um frame, em duas metades. Entre elas, o MeioPasso
+; desce as notas meia linha na tela (animacao mais suave).
 ;------------------------------------------------------------------------------
 Delay:
-	push r0
 	push r1
 	push r2
 	push r3
 
 	load r2, velocidade
-	loadn r1, #tabDelay
+	loadn r1, #tabMsFrame
 	add r1, r1, r2
-	loadi r2, r1                ; r2 = voltas do laco externo
-	loadn r3, #255              ; valor do INCHAR sem tecla
+	loadi r2, r1                ; r2 = ms do frame
+	loadn r3, #2
+	div r1, r2, r3              ; r1 = primeira metade
+	sub r2, r2, r1              ; r2 = segunda metade (o resto)
 
-Delay_externo:
+	push r2
+	mov r2, r1
+	call EsperaMs               ; 1a metade do frame
+	call MeioPasso              ; notas descem meia linha (so' o desenho)
+	pop r2
+	call EsperaMs               ; 2a metade do frame
+
+	pop r3
+	pop r2
+	pop r1
+	rts
+
+;------------------------------------------------------------------------------
+; EsperaMs: espera r2 milissegundos lendo o teclado. A cada volta do laco
+; interno le o teclado, e a tecla e' tratada na hora (assim nenhuma tecla se
+; perde). O laco interno tem 5 instrucoes; 1000 voltas = 5000 instrucoes =
+; 1 ms com o clock de 5 MHz.
+;   r2 = milissegundos (maior que 0)
+;------------------------------------------------------------------------------
+EsperaMs:
+	push r0
+	push r1
+	push r2
+	push r3
+
+	loadn r3, #255              ; valor do INCHAR sem tecla
+EsperaMs_externo:
 	loadn r1, #1000
-Delay_interno:
+EsperaMs_interno:
 	inchar r0
 	cmp r0, r3
-	jeq Delay_semTecla
+	jeq EsperaMs_semTecla
 	call ProcessaTecla
-Delay_semTecla:
+EsperaMs_semTecla:
 	dec r1
-	jnz Delay_interno
+	jnz EsperaMs_interno
 	dec r2
-	jnz Delay_externo
+	jnz EsperaMs_externo
 
 	pop r3
 	pop r2
@@ -975,7 +1365,10 @@ ProcessaTecla_fim:
 
 ;------------------------------------------------------------------------------
 ; TentaAcerto: procura uma nota da pista dentro da janela de acerto
-; (linhas 24 a 26). Se achar, conta o acerto; senao, e' um erro.
+; (linhas 23 a 27) e acerta a MAIS ANTIGA (a mais baixa, que sairia da janela
+; primeiro), como nos jogos de ritmo: se duas notas da mesma pista estao na
+; janela, a tecla vale para a que esta' mais perto de sair.
+; Sem nota na janela: o alvo da pista fica preenchido e o combo zera.
 ;   r0 = pista
 ;------------------------------------------------------------------------------
 TentaAcerto:
@@ -985,6 +1378,12 @@ TentaAcerto:
 	push r4
 	push r5
 	push r6
+	push r7
+
+	loadn r7, #255
+	store acertoSlot, r7        ; nenhuma nota encontrada ainda
+	loadn r7, #0
+	store acertoY, r7           ; linha da mais baixa encontrada ate agora
 
 	loadn r1, #0                ; r1 = slot
 	loadn r6, #16
@@ -992,26 +1391,40 @@ TentaAcerto_laco:
 	loadn r2, #notaY
 	add r2, r2, r1
 	loadi r3, r2                ; r3 = linha da nota
-	loadn r4, #24
+	loadn r4, #23
 	cmp r3, r4
-	jle TentaAcerto_prox        ; linha < 24 (inclui slot livre, linha 0)
+	jle TentaAcerto_prox        ; linha < 23 (inclui slot livre, linha 0)
 	loadn r2, #notaPista
 	add r2, r2, r1
 	loadi r5, r2
 	cmp r5, r0
 	jne TentaAcerto_prox        ; nota de outra pista
-	mov r2, r3                  ; r2 = linha da nota acertada
-	call Acertou                ; r1 = slot, r2 = linha
-	jmp TentaAcerto_fim
+
+	load r7, acertoY
+	cmp r3, r7
+	jel TentaAcerto_prox        ; nao e' mais baixa que a escolhida ate agora
+	store acertoY, r3
+	store acertoSlot, r1
 TentaAcerto_prox:
 	inc r1
 	cmp r1, r6
 	jne TentaAcerto_laco
 
-	loadn r1, #msgSemNota       ; apertou sem nota na janela
+	load r1, acertoSlot
+	loadn r7, #255
+	cmp r1, r7
+	jeq TentaAcerto_semNota
+	load r2, acertoY
+	call Acertou                ; r1 = slot, r2 = linha
+	jmp TentaAcerto_fim
+
+TentaAcerto_semNota:
+	call AcendePressionado      ; alvo da pista preenchido na cor dela
+	loadn r1, #msgSemNota
 	call QuebraCombo
 
 TentaAcerto_fim:
+	pop r7
 	pop r6
 	pop r5
 	pop r4
@@ -1022,7 +1435,8 @@ TentaAcerto_fim:
 
 ;------------------------------------------------------------------------------
 ; Acertou: conta um acerto.
-;   r1 = slot da nota, r2 = linha da nota (25 = exatamente no alvo)
+;   r1 = slot da nota, r2 = linha da nota
+;   Linhas 24 a 26 (alvo com folga de 1 linha) = PERFEITO; 23 ou 27 = QUASE.
 ;------------------------------------------------------------------------------
 Acertou:
 	push r0
@@ -1042,15 +1456,18 @@ Acertou:
 	loadi r0, r3                ; r0 = pista da nota
 	call AcendeFaisca
 
-	loadn r4, #25
+	loadn r4, #24
 	cmp r2, r4
-	jne Acertou_quase
-	loadn r3, #10               ; no alvo: 10 pontos
+	jle Acertou_quase           ; linha 23
+	loadn r4, #26
+	cmp r2, r4
+	jgr Acertou_quase           ; linha 27
+	loadn r3, #10               ; linhas 24..26: 10 pontos
 	loadn r1, #msgPerfeito
 	loadn r2, #2560             ; verde-limao
 	jmp Acertou_pontua
 Acertou_quase:
-	loadn r3, #5                ; uma linha fora: 5 pontos
+	loadn r3, #5                ; 2 linhas fora: 5 pontos
 	loadn r1, #msgQuase
 	loadn r2, #512              ; verde
 Acertou_pontua:
@@ -1131,8 +1548,9 @@ QuebraCombo:
 	rts
 
 ;------------------------------------------------------------------------------
-; MostraMensagem: escreve uma mensagem de 15 caracteres na linha 27, sobre as
-; pistas, e marca para ser apagada depois de 12 frames.
+; MostraMensagem: escreve uma mensagem de 15 caracteres na linha 28, sobre as
+; pistas (abaixo da linha 27, a ultima por onde as notas passam), e marca
+; para ser apagada depois de 12 frames.
 ;   r1 = mensagem, r2 = cor
 ;------------------------------------------------------------------------------
 MostraMensagem:
@@ -1140,7 +1558,7 @@ MostraMensagem:
 	push r3
 
 	call ApagaMensagem
-	loadn r0, #1092             ; linha 27, coluna 12
+	loadn r0, #1132             ; linha 28, coluna 12
 	mov r3, r2
 	call ImprimeStrT
 	loadn r3, #12
@@ -1151,13 +1569,13 @@ MostraMensagem:
 	rts
 
 ;------------------------------------------------------------------------------
-; ApagaMensagem: restaura o cenario na area da mensagem (linha 27, colunas 12..26).
+; ApagaMensagem: restaura o cenario na area da mensagem (linha 28, colunas 12..26).
 ;------------------------------------------------------------------------------
 ApagaMensagem:
 	push r0
 	push r1
-	loadn r0, #1092
-	loadn r1, #1107
+	loadn r0, #1132
+	loadn r1, #1147
 ApagaMensagem_laco:
 	call RestauraCenario
 	inc r0
@@ -1169,12 +1587,20 @@ ApagaMensagem_laco:
 
 ;------------------------------------------------------------------------------
 ; AcendeFaisca: desenha uma faisca no centro do alvo de uma pista (por 4 frames).
+; So' acontece em acertos (PERFEITO ou QUASE). Se o alvo estava preenchido por
+; uma tecla errada, ele volta ao normal antes.
 ;   r0 = pista
 ;------------------------------------------------------------------------------
 AcendeFaisca:
 	push r1
 	push r2
 	push r3
+
+	call RestauraAlvo           ; tira um eventual preenchimento
+	loadn r1, #pressTimer
+	add r1, r1, r0
+	loadn r2, #0
+	storei r1, r2
 
 	loadn r1, #pistaX
 	add r1, r1, r0
@@ -1199,8 +1625,73 @@ AcendeFaisca:
 	rts
 
 ;------------------------------------------------------------------------------
-; AtualizaEfeitos: conta o tempo da mensagem e das faiscas e apaga as que
-; venceram.
+; AcendePressionado: preenche o alvo de uma pista com a cor dela (por 3 frames),
+; para mostrar que a tecla foi apertada sem nota na janela de acerto.
+;   r0 = pista
+;------------------------------------------------------------------------------
+AcendePressionado:
+	push r1
+	push r2
+	push r3
+
+	loadn r1, #pistaX
+	add r1, r1, r0
+	loadi r1, r1
+	loadn r2, #1000             ; linha 25 (alvo) * 40
+	add r1, r1, r2              ; r1 = posicao da parte esquerda do alvo
+	loadn r2, #pistaCor
+	add r2, r2, r0
+	loadi r2, r2
+	loadn r3, #18               ; sprite ALVO_CHEIO_ESQ
+	add r3, r3, r2
+	outchar r3, r1
+	inc r1
+	inc r3                      ; ALVO_CHEIO_MEIO (19)
+	outchar r3, r1
+	inc r1
+	inc r3                      ; ALVO_CHEIO_DIR (20)
+	outchar r3, r1
+
+	loadn r1, #pressTimer
+	add r1, r1, r0
+	loadn r2, #3
+	storei r1, r2
+	loadn r1, #faiscaTimer      ; o preenchimento cobre uma faisca antiga
+	add r1, r1, r0
+	loadn r2, #0
+	storei r1, r2
+
+	pop r3
+	pop r2
+	pop r1
+	rts
+
+;------------------------------------------------------------------------------
+; RestauraAlvo: redesenha o alvo vazado de uma pista (3 caracteres da linha 25).
+;   r0 = pista
+;------------------------------------------------------------------------------
+RestauraAlvo:
+	push r0
+	push r1
+
+	loadn r1, #pistaX
+	add r1, r1, r0
+	loadi r1, r1
+	loadn r0, #1000             ; linha 25 * 40
+	add r0, r0, r1              ; r0 = posicao da parte esquerda do alvo
+	call RestauraCenario
+	inc r0
+	call RestauraCenario
+	inc r0
+	call RestauraCenario
+
+	pop r1
+	pop r0
+	rts
+
+;------------------------------------------------------------------------------
+; AtualizaEfeitos: conta o tempo da mensagem, das faiscas e dos alvos
+; preenchidos, e apaga os que venceram.
 ;------------------------------------------------------------------------------
 AtualizaEfeitos:
 	push r0
@@ -1241,6 +1732,24 @@ AtualizaEfeitos_prox:
 	loadn r3, #4
 	cmp r2, r3
 	jne AtualizaEfeitos_laco
+
+	loadn r0, #0                ; r0 = pista
+AtualizaEfeitos_pressLaco:
+	loadn r3, #pressTimer
+	add r3, r3, r0
+	loadi r4, r3
+	loadn r1, #0
+	cmp r4, r1
+	jeq AtualizaEfeitos_pressProx   ; alvo desta pista nao esta preenchido
+	dec r4
+	storei r3, r4
+	jnz AtualizaEfeitos_pressProx   ; ainda nao venceu (STOREI nao altera o flag)
+	call RestauraAlvo               ; venceu: o alvo volta a ser vazado
+AtualizaEfeitos_pressProx:
+	inc r0
+	loadn r3, #4
+	cmp r0, r3
+	jne AtualizaEfeitos_pressLaco
 
 	pop r4
 	pop r3

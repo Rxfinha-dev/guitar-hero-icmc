@@ -164,6 +164,37 @@ SPRITES = {
         "#####...",
         ".###....",
     ]),
+    # --- Alvo preenchido: tecla apertada sem nota (mesmo contorno do alvo, todo cheio) ---
+    18: ("ALVO_CHEIO_ESQ", [
+        "........",
+        "...#####",
+        "..######",
+        ".#######",
+        ".#######",
+        "..######",
+        "...#####",
+        "........",
+    ]),
+    19: ("ALVO_CHEIO_MEIO", [
+        "........",
+        "########",
+        "########",
+        "########",
+        "########",
+        "########",
+        "########",
+        "........",
+    ]),
+    20: ("ALVO_CHEIO_DIR", [
+        "........",
+        "#####...",
+        "######..",
+        "#######.",
+        "#######.",
+        "######..",
+        "#####...",
+        "........",
+    ]),
     17: ("FAISCA", [
         "...#....",
         ".#.#.#..",
@@ -175,6 +206,19 @@ SPRITES = {
         "........",
     ]),
 }
+
+# --- Nota em meia linha (animacao mais suave) ----------------------------------
+# Na metade de cada frame a nota e' desenhada 4 pixels (meia linha de caractere)
+# mais abaixo: a parte de CIMA dela aparece embaixo de uma linha da tela e a parte
+# de BAIXO aparece em cima da linha seguinte. Os sprites sao gerados a partir do
+# desenho da nota (codigos 1, 2, 3), entao mudar a nota muda os dois.
+DESLOCAMENTO = 4
+for _parte, _codigo in (("ESQ", 1), ("MEIO", 2), ("DIR", 3)):
+    _nota = SPRITES[_codigo][1]
+    SPRITES[20 + _codigo] = (f"NOTA_{_parte}_MEIA_CIMA",                      # 21, 22, 23
+                             ["........"] * DESLOCAMENTO + _nota[:8 - DESLOCAMENTO])
+    SPRITES[23 + _codigo] = (f"NOTA_{_parte}_MEIA_BAIXO",                     # 24, 25, 26
+                             _nota[8 - DESLOCAMENTO:] + ["........"] * DESLOCAMENTO)
 
 LINHA_LIVRES = "[0..255]"
 

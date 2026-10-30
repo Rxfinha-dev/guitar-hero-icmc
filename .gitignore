@@ -13,6 +13,11 @@ tools/headless/headless.exe
 .tmp/
 __pycache__/
 
+# Programas de teste compilados
+testes/*.exe
+testes/diagnostico_audio
+testes/teste_beep
+
 # Saidas geradas pelos testes (o cpuram.mif da raiz e' entrega e fica no repositorio)
 testes/*.mif
 testes/jogo_sound.asm

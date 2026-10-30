@@ -120,7 +120,22 @@ void play_note_async (int rx, int ry, int rz) {  // SNDN: nao espera
     beeperGlobal().replace(tipoOnda(rz), rx, ry);
 }
 ```
-Também corrigimos a fase da onda (`Beeper::v`), que começava sem inicialização.
+Também corrigimos a fase da onda (`Beeper::v`), que começava sem inicialização, e um
+**defeito do original que deixava o simulador mudo no Windows**. O `Beeper` abria o áudio com
+`SDL_OpenAudio(&desiredSpec, &obtainedSpec)`, e nesse modo o SDL2 entrega ao callback o
+formato da placa, sem conversão. No Windows (driver WASAPI) a placa trabalha com float de
+32 bits estéreo, mas o callback escrevia inteiros de 16 bits mono, e o resultado era silêncio.
+Passando `NULL` no lugar de `&obtainedSpec`, o SDL converte automaticamente. O programa
+`testes/diagnostico_audio.cpp` mostra a diferença na própria máquina:
+
+```
+driver de audio: wasapi
+1) Sound.cpp ORIGINAL (com obtainedSpec):
+  placa aceitou: F32 (float 32 bits), 2 canal(is), 44100 Hz
+  buffer do callback: 3528 bytes (S16 mono certo = 4096) -> FORMATO ERRADO, sem som
+2) Sound.cpp CORRIGIDO (obtained = NULL):
+  buffer do callback: 4096 bytes (S16 mono certo = 4096) -> OK, som sai
+```
 
 **`View.cpp`**: o desassemblador do painel "Memória" passa a mostrar `SOUND` e `SNDN`.
 Antes, o `SOUND` caía no `default` e imprimia `ERRO - show program linha` no console.
