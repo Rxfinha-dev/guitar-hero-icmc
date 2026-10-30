@@ -1,0 +1,45 @@
+# MODELO DE PARTITURA - substitua as notas abaixo pela sua transcricao.
+#
+# As notas que estao aqui sao um riff curto, composto so' para o modelo funcionar.
+# Especificacao completa do formato: docs/formato_partitura.md
+# Conferir este arquivo: python tools/gera_musica.py --validar tools/musicas/minha_musica.txt
+#
+# Depois de editar, na raiz do projeto:
+#   python tools/gera_musica.py jogo.asm tools/musicas/ode_alegria.txt tools/musicas/minha_musica.txt
+#   ./Montador/montador jogo.asm cpuram.mif
+
+nome MINHA MUSICA             # aparece no menu (ate' 20 caracteres)
+painel MINHA|MUSICA|          # 3 linhas do painel lateral do jogo (ate' 9 cada)
+onda 1                        # 1 = quadrada: soa como guitarra de videogame
+slots_por_tempo 8             # 1 tempo = 8 frames (colcheia = 4, semicolcheia = 2)
+
+# Pista de cada altura: da mais grave (0 = D) para a mais aguda (3 = K)
+pistas A3=0 C4=1 E4=2 G4=3 F4=2 D4=1
+
+# --- riff de exemplo (repete 2 vezes) ---
+A3 0.5
+C4 0.5
+E4 0.5
+G4 0.5
+E4 0.5
+C4 0.5
+A3 1
+F4 0.5
+E4 0.5
+D4 0.5
+C4 0.5
+D4 1
+- 1
+
+A3 0.5
+C4 0.5
+E4 0.5
+G4 0.5
+E4 0.5
+C4 0.5
+A3 1
+D4 0.5
+E4 0.5
+F4 0.5
+E4 0.5
+A3+E4 1.5

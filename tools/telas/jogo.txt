@@ -5,9 +5,9 @@ v         s GUITAR HERO ICMC s         v
 vhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhv
 v          p   p   p   p   p           v
 v MUSICA   p   p   p   p   p PONTOS    v
-v ODE A    p   p   p   p   p  00000    v
-v ALEGRIA  p   p   p   p   p           v
-v BEETHOVENp   p   p   p   p COMBO     v
+v          p   p   p   p   p  00000    v
+v          p   p   p   p   p           v
+v          p   p   p   p   p COMBO     v
 v          p   p   p   p   p  000      v
 v          p   p   p   p   p           v
 v TECLAS   p   p   p   p   p MULT      v

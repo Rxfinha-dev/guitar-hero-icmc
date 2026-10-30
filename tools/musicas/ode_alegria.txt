@@ -2,6 +2,9 @@
 # Melodia em Do maior. Duracoes em tempos: 1 = seminima, 0.5 = colcheia,
 # 1.5 = seminima pontuada, 2 = minima.
 
+nome ODE A ALEGRIA
+painel ODE A|ALEGRIA|BEETHOVEN
+onda 2
 slots_por_tempo 6
 
 # Pista de cada altura: notas mais agudas ficam mais a direita, como no Guitar Hero.
