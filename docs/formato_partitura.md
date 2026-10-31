@@ -189,7 +189,9 @@ antes do `b`) e notas abafadas (`x`, ignoradas); em acordes fica a nota mais agu
 acrescenta a mais grave); aceita `--capo N`; transpõe por oitavas para caber em C3–D8; e distribui as
 pistas da grave para a aguda, movendo com `@` as notas que ficariam grudadas na mesma pista.
 O ritmo é deduzido do espaçamento entre as notas (o espaçamento mais comum vira 1 tempo; mude a
-velocidade com `--frames-por-unidade`). Como tablatura em texto não tem ritmo exato, **ouça no jogo e
+velocidade com `--frames-por-unidade`). Espaços grandes na tab (fim de bloco, nota sustentada, folga
+entre partes) viram silêncio no jogo, por isso nenhuma nota passa de `--max-tempos` (padrão 2 tempos;
+use 1.5 para encaixar mais apertado, ou 0 para manter o espaçamento original). Como tablatura em texto não tem ritmo exato, **ouça no jogo e
 ajuste as durações se precisar**. Rode `python tools/tab_para_jogo.py --help` para ver todas as opções.
 
 **Tablatura de guitarra (à mão):** cada número é a casa. Comece pela nota da corda solta e suba um semitom por casa.

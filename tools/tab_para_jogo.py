@@ -26,6 +26,9 @@ Opcoes uteis:
                                      (padrao: so' a mais aguda, que e' a melodia)
     --frames-por-unidade N           frames do espacamento mais comum entre notas
                                      (padrao 4; maior = musica mais lenta e facil)
+    --max-tempos N                   duracao maxima de uma nota, em tempos (padrao 2):
+                                     encurta os espacos grandes da tab, que viram
+                                     silencios longos no jogo (0 = sem limite)
     --oitava N                       transpoe N oitavas (padrao: o necessario para
                                      caber na faixa do jogo, C3 a D8)
     --onda 0..3                      timbre (padrao 1, quadrada)
@@ -180,15 +183,28 @@ def agrupa_acordes(eventos):
 # Ritmo, faixa e pistas
 # ----------------------------------------------------------------------------
 
-def duracoes_em_frames(colunas, frames_por_unidade):
+def duracoes_em_frames(colunas, frames_por_unidade, max_tempos):
+    """Duracao de cada nota em frames, proporcional ao espacamento na tab.
+
+    max_tempos limita a duracao de cada nota (0 = sem limite). Espacos grandes
+    na tab quase nunca sao pausas de verdade: sao tracos no fim de um bloco
+    somados aos do comeco do proximo, notas sustentadas escritas com traco ou
+    folga entre partes. Sem o limite eles viram silencios longos no jogo.
+    """
     lacunas = [b - a for a, b in zip(colunas, colunas[1:]) if b > a]
     contagem = Counter(lacunas)
     unidade = min(contagem, key=lambda g: (-contagem[g], g)) if contagem else 1
-    frames = []
+    teto = max(2, int(max_tempos * frames_por_unidade)) if max_tempos else None   # frames inteiros
+    frames, encurtadas, frames_cortados = [], 0, 0
     for i, col in enumerate(colunas):
         lacuna = colunas[i + 1] - col if i + 1 < len(colunas) else 2 * unidade
-        frames.append(max(2, round(Fraction(lacuna, unidade) * frames_por_unidade)))
-    return frames, unidade
+        f = max(2, round(Fraction(lacuna, unidade) * frames_por_unidade))
+        if teto and f > teto:
+            encurtadas += 1
+            frames_cortados += f - teto
+            f = teto
+        frames.append(f)
+    return frames, unidade, encurtadas, frames_cortados
 
 
 def transposicao(alturas, oitava):
@@ -265,7 +281,8 @@ def converte(texto, args):
         raise SystemExit("a tablatura nao tem nenhuma nota")
 
     grupos = agrupa_acordes(eventos)
-    frames, unidade = duracoes_em_frames([c for c, _ in grupos], args.frames_por_unidade)
+    frames, unidade, encurtadas, frames_cortados = duracoes_em_frames(
+        [c for c, _ in grupos], args.frames_por_unidade, args.max_tempos)
 
     # melodia = nota mais aguda; com --acordes 2, tambem a mais grave
     notas = [[g[0]] + ([g[-1]] if args.acordes == 2 and len(g) > 1 else []) for _, g in grupos]
@@ -303,6 +320,10 @@ def converte(texto, args):
         f" = {args.frames_por_unidade} frames",
         f"# {len(blocos)} bloco(s) de tablatura, {len(grupos)} notas"
         + (f", {movidas} movida(s) de pista para nao ficarem grudadas" if movidas else ""),
+        (f"# Pausas longas encurtadas: {encurtadas} nota(s) limitadas a {args.max_tempos} tempo(s), "
+         f"{frames_cortados * 65 / 1000:.0f} s de silencio removidos (nivel 5)"
+         if encurtadas else f"# Nenhuma nota passou de {args.max_tempos} tempo(s)" if args.max_tempos
+         else "# Sem limite de duracao (--max-tempos 0)"),
         "# Confira ouvindo no jogo: o ritmo e' deduzido do espacamento da tab.",
         "",
         f"nome {nome_menu}",
@@ -324,6 +345,9 @@ def main():
     p.add_argument("--capo", type=int, default=0, help="casa do capotraste")
     p.add_argument("--acordes", type=int, choices=(1, 2), default=1, help="notas por acorde (1 = so' a melodia)")
     p.add_argument("--frames-por-unidade", type=int, default=4, help="frames do espacamento mais comum (padrao 4)")
+    p.add_argument("--max-tempos", type=Fraction, default=Fraction(2),
+                   help="duracao maxima de uma nota em tempos; encurta pausas longas da tab "
+                        "(padrao 2; 0 = sem limite; aceita 1.5 ou 3/2)")
     p.add_argument("--oitava", type=int, help="transposicao em oitavas (padrao: automatica)")
     p.add_argument("--onda", type=int, choices=(0, 1, 2, 3), default=1, help="timbre: 0 seno, 1 quadrada, 2 triangular, 3 serra")
     args = p.parse_args()

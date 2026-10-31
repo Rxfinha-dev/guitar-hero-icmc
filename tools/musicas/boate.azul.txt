@@ -1,7 +1,8 @@
-# Gerado por tools/tab_para_jogo.py a partir de boate.azul.txt
+# Gerado por tools/tab_para_jogo.py a partir de Boate.Azul.txt
 # Afinacao: E2 A2 D3 G3 B3 E4
 # Transposicao: +0 oitava(s) | unidade de ritmo: 2 coluna(s) da tab = 4 frames
 # 8 bloco(s) de tablatura, 101 notas
+# Pausas longas encurtadas: 8 nota(s) limitadas a 2 tempo(s), 7 s de silencio removidos (nivel 5)
 # Confira ouvindo no jogo: o ritmo e' deduzido do espacamento da tab.
 
 nome BOATE AZUL
@@ -20,7 +21,7 @@ G#4 1.5
 D#4 1
 D4 1
 D#4 1
-D4 10
+D4 2
 D4 1
 D#4 1
 F4 2
@@ -32,7 +33,7 @@ G4 1.5
 D4 1
 C4 1
 D4 1
-C4 8.5
+C4 2
 C4 1
 D4 1
 D#4 1
@@ -46,12 +47,12 @@ B3 1
 C4 1
 B3 1
 G#3 1
-G3 7.5
+G3 2
 B3 1
 D4 1
 C4 1
 D4 1
-C4 2.5
+C4 2
 G3 1
 G3 1
 D4 1
@@ -75,7 +76,7 @@ G4 1
 G4 1
 F4 1
 F4 1
-F4 4.5
+F4 2
 G4 1
 G#4 1.5
 A#4 2
@@ -87,7 +88,7 @@ F4 1
 F4 1
 D#4 1
 D#4 1
-D#4 6
+D#4 2
 F4 1
 G4 1
 G#4 2
@@ -106,8 +107,8 @@ C4 1
 D4 1
 C4 1.5
 G3 1
-D#4 2.5
+D#4 2
 C4 1.5
-G4 3
+G4 2
 D#4 1.5
 C5 2

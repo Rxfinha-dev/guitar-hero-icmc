@@ -9,6 +9,7 @@ Uso (na raiz do projeto): python tools/testa_tab.py
 import argparse
 import os
 import sys
+from fractions import Fraction
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gera_musica as gm      # noqa: E402
@@ -52,7 +53,7 @@ D|-0---2---|
 
 def args(**k):
     base = dict(entrada="teste.txt", nome="TESTE", afinacao=None, capo=0, acordes=1,
-                frames_por_unidade=4, oitava=None, onda=1)
+                frames_por_unidade=4, oitava=None, onda=1, max_tempos=Fraction(2))
     base.update(k)
     return argparse.Namespace(**base)
 
@@ -80,7 +81,7 @@ def confere(nome, obtido, esperado):
 def main():
     falhas = 0
 
-    saida, _ = tab.converte(TAB_PADRAO, args(oitava=0))
+    saida, _ = tab.converte(TAB_PADRAO, args(oitava=0, max_tempos=0))
     obtido = notas_da_saida(saida)
     alturas = [n for n, _ in obtido]
     falhas += not confere("texto, cifras e titulos ignorados; 9 notas lidas", len(alturas), 9)
@@ -92,6 +93,16 @@ def main():
     falhas += not confere("acorde: fica a nota mais aguda (e0 B1 G0 -> E4)", alturas[8], "E4")
     falhas += not confere("ritmo: 2 colunas = 1 tempo; a barra de compasso nao conta (6 colunas = 3)",
                           [d for _, d in obtido[:5]], ["1", "1", "1", "3", "1"])
+
+    limitada, _ = tab.converte(TAB_PADRAO, args(oitava=0))
+    duracoes = [d for _, d in notas_da_saida(limitada)]
+    falhas += not confere("--max-tempos 2 (padrao): a pausa de 3 tempos vira 2; as de 1 tempo nao mudam",
+                          duracoes[:5], ["1", "1", "1", "2", "1"])
+    falhas += not confere("--max-tempos 2: nenhuma nota passa de 2 tempos",
+                          max(Fraction(d) for d in duracoes) <= 2, True)
+    curta, _ = tab.converte(TAB_PADRAO, args(oitava=0, max_tempos=Fraction(3, 2)))
+    falhas += not confere("--max-tempos 1.5: a pausa de 3 tempos vira 1.5",
+                          notas_da_saida(curta)[3][1], "1.5")
 
     saida2, _ = tab.converte(TAB_PADRAO, args(oitava=0, acordes=2))
     falhas += not confere("--acordes 2: acorde vira melodia + nota mais grave (E4+G3)",
