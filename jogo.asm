@@ -278,29 +278,33 @@ fimL10 : string "chhhhhhhhhhhhhhhhhhhhd"
 ; <<< TELA fimL
 
 ; >>> MUSICA  (gerado por tools/gera_musica.py - nao edite a mao)
-; Musicas, na ordem do menu: ODE A ALEGRIA, ARPEJO EM LA MENOR, MINHA MUSICA, MINHA TAB
+; Musicas, na ordem do menu: ODE A ALEGRIA, ARPEJO EM LA MENOR, MINHA MUSICA, MINHA TAB, BOATE AZUL
 numMusicas : var #1
-static numMusicas + #0, #4
-tabMusicas : var #4           ; endereco do mapa de cada musica
+static numMusicas + #0, #5
+tabMusicas : var #5           ; endereco do mapa de cada musica
 static tabMusicas + #0, #musica0
 static tabMusicas + #1, #musica1
 static tabMusicas + #2, #musica2
 static tabMusicas + #3, #musica3
-tabOndas : var #4             ; forma de onda de cada musica
+static tabMusicas + #4, #musica4
+tabOndas : var #5             ; forma de onda de cada musica
 static tabOndas + #0, #2
 static tabOndas + #1, #1
 static tabOndas + #2, #1
 static tabOndas + #3, #1
-tabNomes : var #4             ; nome no menu (20 caracteres)
+static tabOndas + #4, #1
+tabNomes : var #5             ; nome no menu (20 caracteres)
 static tabNomes + #0, #nomeMusica0
 static tabNomes + #1, #nomeMusica1
 static tabNomes + #2, #nomeMusica2
 static tabNomes + #3, #nomeMusica3
-tabPainel : var #4            ; 3 linhas do painel (9 caracteres + \0 cada = 10 palavras)
+static tabNomes + #4, #nomeMusica4
+tabPainel : var #5            ; 3 linhas do painel (9 caracteres + \0 cada = 10 palavras)
 static tabPainel + #0, #painel0L0
 static tabPainel + #1, #painel1L0
 static tabPainel + #2, #painel2L0
 static tabPainel + #3, #painel3L0
+static tabPainel + #4, #painel4L0
 
 ; ---- musica 0: ODE A ALEGRIA (tools/musicas/ode_alegria.txt) ----
 nomeMusica0 : string "ODE A ALEGRIA       "
@@ -1489,6 +1493,115 @@ static musica3 + #7232, #3233		; pistas D    nota A3   3 frames
 static musica3 + #7235, #3201		; pistas D    nota G3   3 frames
 static musica3 + #7238, #8465		; pistas D    nota E4   8 frames
 static musica3 + #7246, #65535		; fim da musica
+
+; ---- musica 4: BOATE AZUL (tools/musicas/boate.azul.txt) ----
+nomeMusica4 : string "BOATE AZUL          "
+painel4L0 : string "BOATE    "
+painel4L1 : string "AZUL     "
+painel4L2 : string "         "
+musica4 : var #635        ; 1 palavra por frame + marcador de fim
+static musica4 + #0, #6436		; pistas J    nota F4   6 frames
+static musica4 + #6, #4420		; pistas J    nota G4   4 frames
+static musica4 + #10, #4440		; pistas K    nota G#4  4 frames
+static musica4 + #14, #4420		; pistas J    nota G4   4 frames
+static musica4 + #18, #4440		; pistas K    nota G#4  4 frames
+static musica4 + #22, #4420		; pistas J    nota G4   4 frames
+static musica4 + #26, #6488		; pistas K    nota G#4  6 frames
+static musica4 + #32, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #36, #4338		; pistas F    nota D4   4 frames
+static musica4 + #40, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #44, #15602		; pistas F    nota D4   15 frames
+static musica4 + #84, #4338		; pistas F    nota D4   4 frames
+static musica4 + #88, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #92, #8484		; pistas J    nota F4   8 frames
+static musica4 + #100, #4420		; pistas J    nota G4   4 frames
+static musica4 + #104, #4388		; pistas J    nota F4   4 frames
+static musica4 + #108, #4420		; pistas J    nota G4   4 frames
+static musica4 + #112, #4388		; pistas J    nota F4   4 frames
+static musica4 + #116, #6468		; pistas J    nota G4   6 frames
+static musica4 + #122, #4338		; pistas F    nota D4   4 frames
+static musica4 + #126, #4305		; pistas D    nota C4   4 frames
+static musica4 + #130, #4338		; pistas F    nota D4   4 frames
+static musica4 + #134, #15569		; pistas D    nota C4   15 frames
+static musica4 + #168, #4305		; pistas D    nota C4   4 frames
+static musica4 + #172, #4338		; pistas F    nota D4   4 frames
+static musica4 + #176, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #180, #6436		; pistas J    nota F4   6 frames
+static musica4 + #186, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #190, #4388		; pistas J    nota F4   4 frames
+static musica4 + #194, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #198, #4388		; pistas J    nota F4   4 frames
+static musica4 + #202, #4305		; pistas D    nota C4   4 frames
+static musica4 + #206, #4289		; pistas D    nota B3   4 frames
+static musica4 + #210, #4305		; pistas D    nota C4   4 frames
+static musica4 + #214, #4289		; pistas D    nota B3   4 frames
+static musica4 + #218, #4241		; pistas D    nota G#3  4 frames
+static musica4 + #222, #15489		; pistas D    nota G3   15 frames
+static musica4 + #252, #4289		; pistas D    nota B3   4 frames
+static musica4 + #256, #4338		; pistas F    nota D4   4 frames
+static musica4 + #260, #4305		; pistas D    nota C4   4 frames
+static musica4 + #264, #4338		; pistas F    nota D4   4 frames
+static musica4 + #268, #10449		; pistas D    nota C4   10 frames
+static musica4 + #278, #4225		; pistas D    nota G3   4 frames
+static musica4 + #282, #4225		; pistas D    nota G3   4 frames
+static musica4 + #286, #4338		; pistas F    nota D4   4 frames
+static musica4 + #290, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #294, #8450		; pistas F    nota D#4  8 frames
+static musica4 + #302, #4305		; pistas D    nota C4   4 frames
+static musica4 + #306, #4338		; pistas F    nota D4   4 frames
+static musica4 + #310, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #314, #8466		; pistas F    nota E4   8 frames
+static musica4 + #322, #4388		; pistas J    nota F4   4 frames
+static musica4 + #326, #4404		; pistas J    nota F#4  4 frames
+static musica4 + #330, #6468		; pistas J    nota G4   6 frames
+static musica4 + #336, #6488		; pistas K    nota G#4  6 frames
+static musica4 + #342, #8568		; pistas K    nota A#4  8 frames
+static musica4 + #350, #6552		; pistas K    nota C5   6 frames
+static musica4 + #356, #8568		; pistas K    nota A#4  8 frames
+static musica4 + #364, #6552		; pistas K    nota C5   6 frames
+static musica4 + #370, #8568		; pistas K    nota A#4  8 frames
+static musica4 + #378, #8600		; pistas K    nota C5   8 frames
+static musica4 + #386, #4420		; pistas J    nota G4   4 frames
+static musica4 + #390, #4420		; pistas J    nota G4   4 frames
+static musica4 + #394, #4388		; pistas J    nota F4   4 frames
+static musica4 + #398, #4388		; pistas J    nota F4   4 frames
+static musica4 + #402, #15652		; pistas J    nota F4   15 frames
+static musica4 + #420, #4420		; pistas J    nota G4   4 frames
+static musica4 + #424, #6488		; pistas K    nota G#4  6 frames
+static musica4 + #430, #8568		; pistas K    nota A#4  8 frames
+static musica4 + #438, #6488		; pistas K    nota G#4  6 frames
+static musica4 + #444, #6520		; pistas K    nota A#4  6 frames
+static musica4 + #450, #6488		; pistas K    nota G#4  6 frames
+static musica4 + #456, #8568		; pistas K    nota A#4  8 frames
+static musica4 + #464, #4388		; pistas J    nota F4   4 frames
+static musica4 + #468, #4388		; pistas J    nota F4   4 frames
+static musica4 + #472, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #476, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #480, #15618		; pistas F    nota D#4  15 frames
+static musica4 + #504, #4388		; pistas J    nota F4   4 frames
+static musica4 + #508, #4420		; pistas J    nota G4   4 frames
+static musica4 + #512, #8536		; pistas K    nota G#4  8 frames
+static musica4 + #520, #4420		; pistas J    nota G4   4 frames
+static musica4 + #524, #6488		; pistas K    nota G#4  6 frames
+static musica4 + #530, #4420		; pistas J    nota G4   4 frames
+static musica4 + #534, #8536		; pistas K    nota G#4  8 frames
+static musica4 + #542, #4354		; pistas F    nota D#4  4 frames
+static musica4 + #546, #4338		; pistas F    nota D4   4 frames
+static musica4 + #550, #4305		; pistas D    nota C4   4 frames
+static musica4 + #554, #4289		; pistas D    nota B3   4 frames
+static musica4 + #558, #8321		; pistas D    nota G3   8 frames
+static musica4 + #566, #4289		; pistas D    nota B3   4 frames
+static musica4 + #570, #4338		; pistas F    nota D4   4 frames
+static musica4 + #574, #4305		; pistas D    nota C4   4 frames
+static musica4 + #578, #4338		; pistas F    nota D4   4 frames
+static musica4 + #582, #6353		; pistas D    nota C4   6 frames
+static musica4 + #588, #4225		; pistas D    nota G3   4 frames
+static musica4 + #592, #10498		; pistas F    nota D#4  10 frames
+static musica4 + #602, #6353		; pistas D    nota C4   6 frames
+static musica4 + #608, #12612		; pistas J    nota G4   12 frames
+static musica4 + #620, #6402		; pistas F    nota D#4  6 frames
+static musica4 + #626, #8600		; pistas K    nota C5   8 frames
+static musica4 + #634, #65535		; fim da musica
 
 ; freqs[i] = frequencia em Hz da nota de indice i (indice 1 = C3, sobe de semitom em semitom)
 freqs : var #64
