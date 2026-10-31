@@ -100,7 +100,7 @@ def le_partitura(caminho):
                 partes = linha.split()
                 if len(partes) != 2:
                     raise SystemExit(f"{caminho}:{num}: esperado 'NOTA DURACAO'")
-                notas = [] if partes[0] == "-" else [midi(n) for n in partes[0].split("+")]
+                notas = [] if partes[0] == "-" else [le_nota(caminho, num, n) for n in partes[0].split("+")]
                 try:
                     tempos = Fraction(partes[1])        # aceita 1, 0.5, 1.5 e fracoes como 1/3
                 except ValueError:
@@ -117,8 +117,22 @@ def le_partitura(caminho):
     return info
 
 
+def le_nota(caminho, num, texto):
+    """'E4' -> (64, None); 'E4@2' -> (64, 2): pista fixada so' para esta nota."""
+    nome, _, pista = texto.partition("@")
+    try:
+        n = midi(nome)
+    except ValueError as e:
+        raise SystemExit(f"{caminho}:{num}: {e}")
+    if pista == "":
+        return n, None
+    if not pista.isdigit() or not 0 <= int(pista) <= 3:
+        raise SystemExit(f"{caminho}:{num}: pista invalida em '{texto}' (use @0, @1, @2 ou @3)")
+    return n, int(pista)
+
+
 def pistas_automaticas(eventos):
-    alturas = sorted({n for notas, _, _ in eventos for n in notas})
+    alturas = sorted({n for notas, _, _ in eventos for n, _ in notas})
     return {n: i * 4 // len(alturas) for i, n in enumerate(alturas)}
 
 
@@ -135,17 +149,25 @@ def gera_mapa(caminho, info):
         palavra = 0
         if notas:
             mascara = 0
-            for n in notas:
-                if n not in mapa:
-                    raise SystemExit(f"{caminho}:{num}: nota {nome_midi(n)} sem pista definida na linha 'pistas'")
-                if not 0 <= mapa[n] <= 3:
+            for n, fixa in notas:
+                if fixa is not None:
+                    pista = fixa
+                elif n in mapa:
+                    pista = mapa[n]
+                else:
+                    raise SystemExit(f"{caminho}:{num}: nota {nome_midi(n)} sem pista definida na linha 'pistas' "
+                                     f"(ou use {nome_midi(n)}@PISTA)")
+                if not 0 <= pista <= 3:
                     raise SystemExit(f"{caminho}:{num}: pista de {nome_midi(n)} deve ser 0..3")
-                mascara |= 1 << mapa[n]
-            indice = notas[0] - MIDI_BASE
+                if mascara & (1 << pista):
+                    raise SystemExit(f"{caminho}:{num}: duas notas juntas na mesma pista {pista}")
+                mascara |= 1 << pista
+            primeira = notas[0][0]
+            indice = primeira - MIDI_BASE
             if not 1 <= indice <= MAX_INDICE:
-                raise SystemExit(f"{caminho}:{num}: nota {nome_midi(notas[0])} fora da faixa C3..D8 "
+                raise SystemExit(f"{caminho}:{num}: nota {nome_midi(primeira)} fora da faixa C3..D8 "
                                  f"(transponha uma oitava)")
-            usadas.add(notas[0])
+            usadas.add(primeira)
             total_notas += bin(mascara).count("1")
             palavra = mascara | (indice << 4) | (min(slots, 15) << 10)
         musica.append(palavra)

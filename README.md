@@ -152,6 +152,8 @@ tools/
   musicas/*.txt          partituras
   gera_telas.py          desenhos -> strings do jogo.asm
   gera_musica.py         partitura -> mapa de notas + tabela de frequências no jogo.asm
+  tab_para_jogo.py       tablatura em texto (padrão Cifra Club) -> partitura do jogo
+  testa_tab.py           testes do conversor de tablatura
   gera_charmap.py        sprites -> charmap.mif
   versao_sound.py        gera a versão "antes" (com SOUND) para comparação
   testa_jogo.py          testes automáticos do jogo

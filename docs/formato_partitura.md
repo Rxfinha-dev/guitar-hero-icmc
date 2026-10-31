@@ -58,6 +58,7 @@ Sem aspas (`"`) e sem barra invertida (`\`). O gerador converte tudo para maiús
 |---|---|
 | `NOTA DURAÇÃO` | uma nota (ex.: `E4 1`) |
 | `NOTA+NOTA DURAÇÃO` | notas juntas, até 4, em pistas diferentes (ex.: `C4+G4 2`); só a primeira soa |
+| `NOTA@PISTA DURAÇÃO` | fixa a pista (0–3) só desta nota, sem mudar a altura (ex.: `E4@3 1`); vale também dentro de acordes (`C4@0+G4@2 2`) |
 | `- DURAÇÃO` | pausa |
 
 Não existe sintaxe de repetição (ritornelo, "2x"): escreva tudo por extenso, na ordem em que toca.
@@ -175,7 +176,23 @@ Uma música de 20 a 60 segundos (300 a 900 frames) é um bom tamanho para uma pa
 **Partitura:** leia nome e oitava de cada nota (a clave de sol tem o mi da primeira linha = `E4`) e a
 figura rítmica (tabela da seção 4). Aplique as alterações da armadura de clave em todas as notas.
 
-**Tablatura de guitarra:** cada número é a casa. Comece pela nota da corda solta e suba um semitom por casa.
+**Tablatura de guitarra (conversão automática):** o conversor `tools/tab_para_jogo.py` lê a tablatura em
+texto do jeito que aparece no Cifra Club e gera a partitura pronta, já validada:
+
+```bash
+python tools/tab_para_jogo.py minha_tab.txt -o tools/musicas/minha_tab.txt --nome "MINHA TAB"
+```
+
+Ele ignora título, cifras e letra; lê a afinação pelos nomes das cordas (ex.: Drop D) ou por
+`--afinacao`; trata casas de 2 dígitos, hammer-on/pull-off e slide (viram notas), bend (só a casa
+antes do `b`) e notas abafadas (`x`, ignoradas); em acordes fica a nota mais aguda (`--acordes 2`
+acrescenta a mais grave); aceita `--capo N`; transpõe por oitavas para caber em C3–D8; e distribui as
+pistas da grave para a aguda, movendo com `@` as notas que ficariam grudadas na mesma pista.
+O ritmo é deduzido do espaçamento entre as notas (o espaçamento mais comum vira 1 tempo; mude a
+velocidade com `--frames-por-unidade`). Como tablatura em texto não tem ritmo exato, **ouça no jogo e
+ajuste as durações se precisar**. Rode `python tools/tab_para_jogo.py --help` para ver todas as opções.
+
+**Tablatura de guitarra (à mão):** cada número é a casa. Comece pela nota da corda solta e suba um semitom por casa.
 
 | Corda | 6ª (mais grossa) | 5ª | 4ª | 3ª | 2ª | 1ª (mais fina) |
 |---|---|---|---|---|---|---|
