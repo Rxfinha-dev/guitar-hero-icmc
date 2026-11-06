@@ -17,7 +17,7 @@
 ;     A musica toca sozinha, sincronizada com as notas.
 ;
 ;   No menu: teclas 1 a 9 escolhem a velocidade, M troca a musica
-;   (as musicas vem de tools/musicas/*.txt) e ESPACO comeca.
+;   (as musicas do menu estao em tools/musicas/lista.txt) e ESPACO comeca.
 ;
 ;------------------------------------------------------------------------------
 ;   MODIFICACAO DA ARQUITETURA: instrucao SNDN
@@ -43,6 +43,7 @@
 ;       1,2,3 = nota (esquerda, meio, direita)     5 = divisoria da pista
 ;       6,7,8 = alvo vazado (esquerda, meio, dir)  9,10 = borda vertical/horizontal
 ;       11..14 = cantos da moldura                 16 = nota musical   17 = faisca
+;       18,19,20 = alvo preenchido                 21..26 = nota em meia linha
 ;
 ;   Os cenarios sao desenhados em tools/telas/*.txt e viram as strings
 ;   telaLxx / menuLxx / fimLxx (tools/gera_telas.py). Nesses desenhos o TEXTO
@@ -89,7 +90,7 @@ musicaAtual : var #1            ; endereco do mapa da musica em jogo = tabMusica
 ondaMelodia : var #1            ; forma de onda da musica em jogo = tabOndas[musicaSel]
                                 ; (0 seno, 1 quadrada, 2 triangular, 3 dente de serra)
 
-pontos : var #1                 ; pontuacao (cabe em 16 bits: no maximo ~3000)
+pontos : var #1                 ; pontuacao (16 bits: ate' ~1600 notas, todas no x4)
 combo : var #1                  ; acertos seguidos
 comboMax : var #1               ; maior combo da partida
 mult : var #1                   ; multiplicador de pontos (1..4)
@@ -105,12 +106,8 @@ fimContador : var #1            ; frames que faltam para a tela de fim de jogo
 
 msgTimer : var #1               ; frames ate apagar a mensagem (PERFEITO!/ERROU!)
 notasNoMeio : var #1            ; 1 = notas desenhadas meia linha abaixo (2a metade do frame)
-faiscaTimer : var #4            ; frames ate apagar a faisca de cada pista
-pressTimer : var #4             ; frames ate esvaziar o alvo preenchido (tecla sem nota)
-
-; Usados pela TentaAcerto para escolher a nota mais antiga da janela
-acertoSlot : var #1             ; slot da nota escolhida (255 = nenhuma)
-acertoY : var #1                ; linha dela
+alvoTimer : var #4              ; frames ate o alvo de cada pista voltar ao normal
+                                ; (depois de uma faisca ou de um preenchimento)
 
 ; Notas ativas na tela: 16 "slots" em vetores paralelos.
 ; notaY[i] = linha da nota (0 = slot livre); notaPista[i] = pista 0..3
@@ -142,9 +139,13 @@ static bitPista + #1, #2
 static bitPista + #2, #4
 static bitPista + #3, #8
 
+; Teclas do jogo: um par (minuscula, maiuscula) por pista, para funcionar com
+; Caps Lock. A pista e' a posicao na string dividida por 2.
+teclasPista : string "dDfFjJkK"
+
 ; Velocidade: duracao de um frame do jogo, em ms, para cada nivel (1..9).
 ; O simulador roda com clock fixo de 5 MHz (CLOCK_HZ em Mneumonicos.h), e cada
-; volta do laco externo do Delay executa 5000 instrucoes = exatamente 1 ms.
+; volta do laco externo do EsperaMs executa 5000 instrucoes = exatamente 1 ms.
 ; Por isso a mesma tabela da' o tamanho do Delay E a duracao das notas da musica,
 ; e o som fica sincronizado com as notas na tela.
 tabMsFrame : var #10
@@ -1675,12 +1676,12 @@ static freqs + #63, #4699		; D8
 ;==============================================================================
 
 main:
-	call Menu                   ; tela inicial: escolhe a velocidade e espera ESPACO
+	call Menu                   ; tela inicial: velocidade e musica; espera ESPACO
 	call IniciaJogo             ; zera o estado e desenha o cenario
 
 ; Cada volta deste laco e' um frame do jogo.
 LoopJogo:
-	call AtualizaEfeitos        ; apaga mensagens e faiscas antigas (ANTES de desenhar
+	call AtualizaEfeitos        ; apaga mensagens e efeitos vencidos (ANTES de desenhar
 	                            ; as notas: senao o alvo restaurado cobriria uma nota)
 	call MoveNotas              ; desce as notas uma linha; nota que passou = erro
 	call SpawnNotas             ; cria as notas deste frame no topo das pistas
@@ -1856,15 +1857,14 @@ IniciaJogo_zeraNotas:
 	dec r1
 	jnz IniciaJogo_zeraNotas
 
-	; apaga as faiscas e os alvos preenchidos das 4 pistas
-	; (faiscaTimer e pressTimer sao vizinhos na memoria: 8 palavras seguidas)
-	loadn r0, #faiscaTimer
-	loadn r1, #8
-IniciaJogo_zeraFaiscas:
+	; nenhum efeito ativo nos alvos das 4 pistas
+	loadn r0, #alvoTimer
+	loadn r1, #4
+IniciaJogo_zeraAlvos:
 	storei r0, r2
 	inc r0
 	dec r1
-	jnz IniciaJogo_zeraFaiscas
+	jnz IniciaJogo_zeraAlvos
 
 	; cenario do jogo
 	loadn r1, #telaL00
@@ -1922,7 +1922,7 @@ IniciaJogo_nome:
 
 ;------------------------------------------------------------------------------
 ; MoveNotas: desce todas as notas ativas uma linha.
-;   A nota que passa da linha 26 (ultima chance de acerto) e' perdida.
+;   A nota que passa da linha 27 (ultima chance de acerto) e' perdida.
 ;------------------------------------------------------------------------------
 MoveNotas:
 	push r0
@@ -2112,15 +2112,9 @@ DesenhaNota:
 	push r3
 
 	call PosicaoNota            ; r1 = posicao, r2 = cor
-	loadn r3, #1                ; sprite NOTA_ESQ
+	loadn r3, #1                ; sprites NOTA_ESQ, NOTA_MEIO, NOTA_DIR (1, 2, 3)
 	add r3, r3, r2
-	outchar r3, r1
-	inc r1
-	inc r3                      ; sprite NOTA_MEIO (codigo 2), mesma cor
-	outchar r3, r1
-	inc r1
-	inc r3                      ; sprite NOTA_DIR (codigo 3)
-	outchar r3, r1
+	call Desenha3
 
 	pop r3
 	pop r2
@@ -2142,11 +2136,7 @@ ApagaNota:
 
 	call PosicaoNota            ; r1 = posicao
 	mov r0, r1
-	call RestauraCenario
-	inc r0
-	call RestauraCenario
-	inc r0
-	call RestauraCenario
+	call Restaura3
 
 	load r2, notasNoMeio
 	loadn r3, #0
@@ -2157,11 +2147,7 @@ ApagaNota:
 	jeg ApagaNota_fim
 	loadn r3, #40
 	add r0, r1, r3              ; mesma coluna, linha de baixo
-	call RestauraCenario
-	inc r0
-	call RestauraCenario
-	inc r0
-	call RestauraCenario
+	call Restaura3
 
 ApagaNota_fim:
 	pop r3
@@ -2183,27 +2169,15 @@ DesenhaNotaMeia:
 	push r4
 
 	call PosicaoNota            ; r1 = posicao, r2 = cor
-	loadn r3, #21               ; NOTA_ESQ_MEIA_CIMA
+	loadn r3, #21               ; parte de cima da nota (sprites 21, 22, 23)
 	add r3, r3, r2
-	outchar r3, r1
-	inc r1
-	inc r3                      ; NOTA_MEIO_MEIA_CIMA (22)
-	outchar r3, r1
-	inc r1
-	inc r3                      ; NOTA_DIR_MEIA_CIMA (23)
-	outchar r3, r1
+	call Desenha3
 
-	loadn r4, #38
-	add r1, r1, r4              ; linha de baixo, primeira coluna (+40 -2)
-	loadn r3, #24               ; NOTA_ESQ_MEIA_BAIXO
+	loadn r4, #40
+	add r1, r1, r4              ; mesma coluna, linha de baixo
+	loadn r3, #24               ; parte de baixo da nota (sprites 24, 25, 26)
 	add r3, r3, r2
-	outchar r3, r1
-	inc r1
-	inc r3                      ; NOTA_MEIO_MEIA_BAIXO (25)
-	outchar r3, r1
-	inc r1
-	inc r3                      ; NOTA_DIR_MEIA_BAIXO (26)
-	outchar r3, r1
+	call Desenha3
 
 	pop r4
 	pop r3
@@ -2385,53 +2359,35 @@ EsperaMs_semTecla:
 
 ;------------------------------------------------------------------------------
 ; ProcessaTecla: converte a tecla na pista correspondente e tenta acertar.
-;   r0 = codigo da tecla (aceita minuscula e maiuscula). Outras teclas: ignora.
+;   r0 = codigo da tecla. Procura na tabela teclasPista; outras teclas: ignora.
 ;------------------------------------------------------------------------------
 ProcessaTecla:
 	push r0
 	push r1
+	push r2
+	push r3
 
-	loadn r1, #'d'
-	cmp r0, r1
-	jeq ProcessaTecla_pista0
-	loadn r1, #'D'
-	cmp r0, r1
-	jeq ProcessaTecla_pista0
-	loadn r1, #'f'
-	cmp r0, r1
-	jeq ProcessaTecla_pista1
-	loadn r1, #'F'
-	cmp r0, r1
-	jeq ProcessaTecla_pista1
-	loadn r1, #'j'
-	cmp r0, r1
-	jeq ProcessaTecla_pista2
-	loadn r1, #'J'
-	cmp r0, r1
-	jeq ProcessaTecla_pista2
-	loadn r1, #'k'
-	cmp r0, r1
-	jeq ProcessaTecla_pista3
-	loadn r1, #'K'
-	cmp r0, r1
-	jeq ProcessaTecla_pista3
+	loadn r1, #0                ; r1 = posicao na tabela
+	loadn r2, #8                ; 8 teclas
+ProcessaTecla_laco:
+	loadn r3, #teclasPista
+	add r3, r3, r1
+	loadi r3, r3
+	cmp r3, r0
+	jeq ProcessaTecla_achou
+	inc r1
+	cmp r1, r2
+	jne ProcessaTecla_laco
 	jmp ProcessaTecla_fim       ; nao e' tecla do jogo
 
-ProcessaTecla_pista0:
-	loadn r0, #0
-	jmp ProcessaTecla_tenta
-ProcessaTecla_pista1:
-	loadn r0, #1
-	jmp ProcessaTecla_tenta
-ProcessaTecla_pista2:
-	loadn r0, #2
-	jmp ProcessaTecla_tenta
-ProcessaTecla_pista3:
-	loadn r0, #3
-ProcessaTecla_tenta:
+ProcessaTecla_achou:
+	loadn r3, #2
+	div r0, r1, r3              ; r0 = pista
 	call TentaAcerto
 
 ProcessaTecla_fim:
+	pop r3
+	pop r2
 	pop r1
 	pop r0
 	rts
@@ -2451,43 +2407,34 @@ TentaAcerto:
 	push r4
 	push r5
 	push r6
-	push r7
 
-	loadn r7, #255
-	store acertoSlot, r7        ; nenhuma nota encontrada ainda
-	loadn r7, #0
-	store acertoY, r7           ; linha da mais baixa encontrada ate agora
-
+	loadn r2, #255              ; r2 = slot escolhido (255 = nenhum)
+	loadn r3, #22               ; r3 = linha a superar: comeca logo acima da janela
 	loadn r1, #0                ; r1 = slot
-	loadn r6, #16
+	loadn r4, #16
 TentaAcerto_laco:
-	loadn r2, #notaY
-	add r2, r2, r1
-	loadi r3, r2                ; r3 = linha da nota
-	loadn r4, #23
-	cmp r3, r4
-	jle TentaAcerto_prox        ; linha < 23 (inclui slot livre, linha 0)
-	loadn r2, #notaPista
-	add r2, r2, r1
-	loadi r5, r2
+	loadn r5, #notaY
+	add r5, r5, r1
+	loadi r6, r5                ; r6 = linha da nota
+	cmp r6, r3
+	jel TentaAcerto_prox        ; fora da janela, slot livre ou nao e' a mais baixa
+	loadn r5, #notaPista
+	add r5, r5, r1
+	loadi r5, r5
 	cmp r5, r0
 	jne TentaAcerto_prox        ; nota de outra pista
-
-	load r7, acertoY
-	cmp r3, r7
-	jel TentaAcerto_prox        ; nao e' mais baixa que a escolhida ate agora
-	store acertoY, r3
-	store acertoSlot, r1
+	mov r2, r1
+	mov r3, r6
 TentaAcerto_prox:
 	inc r1
-	cmp r1, r6
+	cmp r1, r4
 	jne TentaAcerto_laco
 
-	load r1, acertoSlot
-	loadn r7, #255
-	cmp r1, r7
+	loadn r5, #255
+	cmp r2, r5
 	jeq TentaAcerto_semNota
-	load r2, acertoY
+	mov r1, r2
+	mov r2, r3
 	call Acertou                ; r1 = slot, r2 = linha
 	jmp TentaAcerto_fim
 
@@ -2497,7 +2444,6 @@ TentaAcerto_semNota:
 	call QuebraCombo
 
 TentaAcerto_fim:
-	pop r7
 	pop r6
 	pop r5
 	pop r4
@@ -2670,24 +2616,13 @@ AcendeFaisca:
 	push r3
 
 	call RestauraAlvo           ; tira um eventual preenchimento
-	loadn r1, #pressTimer
-	add r1, r1, r0
-	loadn r2, #0
-	storei r1, r2
-
-	loadn r1, #pistaX
-	add r1, r1, r0
-	loadi r1, r1
-	loadn r2, #1001             ; linha 25 (alvo) * 40 + 1 (centro da nota)
-	add r1, r1, r2              ; r1 = posicao do centro do alvo
-	loadn r2, #pistaCor
-	add r2, r2, r0
-	loadi r2, r2
+	call PosicaoAlvo            ; r1 = posicao, r2 = cor
+	inc r1                      ; centro do alvo
 	loadn r3, #17               ; sprite FAISCA
 	add r3, r3, r2
 	outchar r3, r1
 
-	loadn r1, #faiscaTimer
+	loadn r1, #alvoTimer
 	add r1, r1, r0
 	loadn r2, #4
 	storei r1, r2
@@ -2707,36 +2642,35 @@ AcendePressionado:
 	push r2
 	push r3
 
-	loadn r1, #pistaX
-	add r1, r1, r0
-	loadi r1, r1
-	loadn r2, #1000             ; linha 25 (alvo) * 40
-	add r1, r1, r2              ; r1 = posicao da parte esquerda do alvo
-	loadn r2, #pistaCor
-	add r2, r2, r0
-	loadi r2, r2
-	loadn r3, #18               ; sprite ALVO_CHEIO_ESQ
+	call PosicaoAlvo            ; r1 = posicao, r2 = cor
+	loadn r3, #18               ; sprites ALVO_CHEIO (18, 19, 20)
 	add r3, r3, r2
-	outchar r3, r1
-	inc r1
-	inc r3                      ; ALVO_CHEIO_MEIO (19)
-	outchar r3, r1
-	inc r1
-	inc r3                      ; ALVO_CHEIO_DIR (20)
-	outchar r3, r1
+	call Desenha3
 
-	loadn r1, #pressTimer
+	loadn r1, #alvoTimer
 	add r1, r1, r0
 	loadn r2, #3
-	storei r1, r2
-	loadn r1, #faiscaTimer      ; o preenchimento cobre uma faisca antiga
-	add r1, r1, r0
-	loadn r2, #0
 	storei r1, r2
 
 	pop r3
 	pop r2
 	pop r1
+	rts
+
+;------------------------------------------------------------------------------
+; PosicaoAlvo: calcula onde fica o alvo de uma pista (linha 25).
+;   r0 = pista
+;   Retorna: r1 = posicao na tela da parte esquerda do alvo, r2 = cor da pista
+;------------------------------------------------------------------------------
+PosicaoAlvo:
+	loadn r1, #pistaX
+	add r1, r1, r0
+	loadi r1, r1
+	loadn r2, #1000             ; linha 25 * 40
+	add r1, r1, r2
+	loadn r2, #pistaCor
+	add r2, r2, r0
+	loadi r2, r2
 	rts
 
 ;------------------------------------------------------------------------------
@@ -2746,25 +2680,20 @@ AcendePressionado:
 RestauraAlvo:
 	push r0
 	push r1
+	push r2
 
-	loadn r1, #pistaX
-	add r1, r1, r0
-	loadi r1, r1
-	loadn r0, #1000             ; linha 25 * 40
-	add r0, r0, r1              ; r0 = posicao da parte esquerda do alvo
-	call RestauraCenario
-	inc r0
-	call RestauraCenario
-	inc r0
-	call RestauraCenario
+	call PosicaoAlvo
+	mov r0, r1
+	call Restaura3
 
+	pop r2
 	pop r1
 	pop r0
 	rts
 
 ;------------------------------------------------------------------------------
-; AtualizaEfeitos: conta o tempo da mensagem, das faiscas e dos alvos
-; preenchidos, e apaga os que venceram.
+; AtualizaEfeitos: conta o tempo da mensagem e dos efeitos nos alvos (faisca ou
+; preenchimento) e apaga os que venceram.
 ;------------------------------------------------------------------------------
 AtualizaEfeitos:
 	push r0
@@ -2776,53 +2705,30 @@ AtualizaEfeitos:
 	load r0, msgTimer
 	loadn r1, #0
 	cmp r0, r1
-	jeq AtualizaEfeitos_faiscas
+	jeq AtualizaEfeitos_alvos
 	dec r0
 	store msgTimer, r0
-	jnz AtualizaEfeitos_faiscas
+	jnz AtualizaEfeitos_alvos
 	call ApagaMensagem
 
-AtualizaEfeitos_faiscas:
-	loadn r2, #0                ; r2 = pista
-AtualizaEfeitos_laco:
-	loadn r3, #faiscaTimer
-	add r3, r3, r2
-	loadi r4, r3
-	loadn r1, #0
-	cmp r4, r1
-	jeq AtualizaEfeitos_prox    ; sem faisca nesta pista
-	dec r4
-	storei r3, r4
-	jnz AtualizaEfeitos_prox    ; ainda nao venceu (STOREI nao altera o flag)
-	loadn r3, #pistaX           ; venceu: devolve o alvo ao centro da pista
-	add r3, r3, r2
-	loadi r0, r3
-	loadn r3, #1001
-	add r0, r0, r3
-	call RestauraCenario
-AtualizaEfeitos_prox:
-	inc r2
-	loadn r3, #4
-	cmp r2, r3
-	jne AtualizaEfeitos_laco
-
+AtualizaEfeitos_alvos:
 	loadn r0, #0                ; r0 = pista
-AtualizaEfeitos_pressLaco:
-	loadn r3, #pressTimer
-	add r3, r3, r0
-	loadi r4, r3
-	loadn r1, #0
-	cmp r4, r1
-	jeq AtualizaEfeitos_pressProx   ; alvo desta pista nao esta preenchido
-	dec r4
-	storei r3, r4
-	jnz AtualizaEfeitos_pressProx   ; ainda nao venceu (STOREI nao altera o flag)
-	call RestauraAlvo               ; venceu: o alvo volta a ser vazado
-AtualizaEfeitos_pressProx:
-	inc r0
 	loadn r3, #4
+	loadn r4, #0
+AtualizaEfeitos_laco:
+	loadn r1, #alvoTimer
+	add r1, r1, r0
+	loadi r2, r1
+	cmp r2, r4
+	jeq AtualizaEfeitos_prox    ; alvo desta pista esta normal
+	dec r2
+	storei r1, r2
+	jnz AtualizaEfeitos_prox    ; ainda nao venceu (STOREI nao altera o flag)
+	call RestauraAlvo           ; venceu: o alvo volta a ser vazado
+AtualizaEfeitos_prox:
+	inc r0
 	cmp r0, r3
-	jne AtualizaEfeitos_pressLaco
+	jne AtualizaEfeitos_laco
 
 	pop r4
 	pop r3
@@ -2908,7 +2814,7 @@ TelaFim_caixa:
 	call ImprimeNumero
 	loadn r0, #581              ; acertos
 	load r1, acertos
-		loadn r2, #3
+	loadn r2, #3
 	call ImprimeNumero
 	loadn r0, #585              ; total de notas
 	load r1, totalNotas
@@ -2941,20 +2847,31 @@ TelaFim_espera:
 
 ;------------------------------------------------------------------------------
 ; CalculaPrecisao: r1 = acertos * 100 / totalNotas (0 se nao houve notas).
+;   Em duas etapas, para nunca passar de 16 bits: acertos * 100 estouraria a
+;   partir de 656 acertos. Com a = acertos e t = totalNotas:
+;     precisao = (a*10 / t) * 10  +  ((a*10 mod t) * 10) / t
+;   a*10 e (a*10 mod t)*10 ficam abaixo de 10*t: cabem ate' 6553 notas.
 ;------------------------------------------------------------------------------
 CalculaPrecisao:
 	push r2
+	push r3
+	push r4
 	load r2, totalNotas
 	loadn r1, #0
 	cmp r2, r1
 	jeq CalculaPrecisao_fim
-	load r1, acertos
-	push r3
-	loadn r3, #100
-	mul r1, r1, r3
-	pop r3
-	div r1, r1, r2
+	loadn r4, #10
+	load r3, acertos
+	mul r3, r3, r4              ; r3 = a * 10
+	div r1, r3, r2              ; r1 = dezenas da porcentagem
+	mul r1, r1, r4
+	mod r3, r3, r2              ; resto
+	mul r3, r3, r4
+	div r3, r3, r2              ; unidades da porcentagem
+	add r1, r1, r3
 CalculaPrecisao_fim:
+	pop r4
+	pop r3
 	pop r2
 	rts
 
@@ -3061,6 +2978,39 @@ ImprimeCenario_coluna:
 	pop r4
 	pop r2
 	pop r1
+	pop r0
+	rts
+
+;------------------------------------------------------------------------------
+; Desenha3: desenha 3 sprites de codigos seguidos (c, c+1, c+2) em 3 posicoes
+; seguidas. Notas e alvos tem 3 caracteres de largura (esquerda, meio, direita).
+;   r1 = posicao do primeiro, r3 = codigo do primeiro sprite + cor
+;------------------------------------------------------------------------------
+Desenha3:
+	push r1
+	push r3
+	outchar r3, r1
+	inc r1
+	inc r3
+	outchar r3, r1
+	inc r1
+	inc r3
+	outchar r3, r1
+	pop r3
+	pop r1
+	rts
+
+;------------------------------------------------------------------------------
+; Restaura3: redesenha o cenario em 3 posicoes seguidas (apaga nota ou alvo).
+;   r0 = posicao da primeira
+;------------------------------------------------------------------------------
+Restaura3:
+	push r0
+	call RestauraCenario
+	inc r0
+	call RestauraCenario
+	inc r0
+	call RestauraCenario
 	pop r0
 	rts
 

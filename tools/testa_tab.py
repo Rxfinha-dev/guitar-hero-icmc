@@ -52,6 +52,7 @@ D|-0---2---|
 
 
 def args(**k):
+    """Opcoes do conversor com os valores padrao, trocando as passadas por parametro."""
     base = dict(entrada="teste.txt", nome="TESTE", afinacao=None, capo=0, acordes=1,
                 frames_por_unidade=4, oitava=None, onda=1, max_tempos=Fraction(2))
     base.update(k)
@@ -71,6 +72,7 @@ def notas_da_saida(partitura):
 
 
 def confere(nome, obtido, esperado):
+    """Compara o obtido com o esperado, imprime o resultado e conta a falha."""
     ok = obtido == esperado
     print(f"[{'OK   ' if ok else 'FALHA'}] {nome}")
     if not ok:

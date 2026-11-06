@@ -294,12 +294,12 @@ Na raiz do projeto:
 # 1. confere o arquivo (formato + jogabilidade) sem mexer no jogo
 python tools/gera_musica.py --validar tools/musicas/minha_musica.txt
 
-# 2. gera o jogo com as musicas, na ordem do menu (tecla M troca)
-python tools/gera_musica.py jogo.asm tools/musicas/ode_alegria.txt tools/musicas/minha_musica.txt
+# 2. acrescente o nome do arquivo em tools/musicas/lista.txt (a ordem da lista e' a do menu)
+#    e regenere e monte o jogo
+python tools/gera_jogo.py
 
-# 3. monta e testa (o robo de testes precisa acertar todas as notas da 2a musica)
-./Montador/montador jogo.asm cpuram.mif
-python tools/testa_jogo.py
+# 3. teste: o robo precisa acertar todas as notas de cada musica do menu
+python tools/testa_tudo.py
 ```
 
 Mensagens comuns do gerador:

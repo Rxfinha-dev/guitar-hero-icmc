@@ -1,7 +1,6 @@
 """Converte as partituras em texto (tools/musicas/*.txt) nos mapas de notas do jogo.
 
-Varias musicas podem ser geradas de uma vez; a ordem dos arquivos e' a ordem em
-que elas aparecem no menu (tecla M troca a musica).
+As musicas do menu (tecla M troca) e a ordem delas ficam em tools/musicas/lista.txt.
 
 Formato da partitura (uma nota por linha):
 
@@ -25,10 +24,14 @@ Cada frame do jogo corresponde a uma palavra de 16 bits no mapa da musica:
 
 O script substitui, no jogo.asm, o bloco entre '; >>> MUSICA' e '; <<< MUSICA'.
 
-Uso:
-    python tools/gera_musica.py jogo.asm tools/musicas/ode_alegria.txt [outra.txt ...]
-    python tools/gera_musica.py --validar tools/musicas/minha_musica.txt [outra.txt ...]
-        (so' confere as partituras e a jogabilidade, sem alterar o jogo.asm)
+Uso (na raiz do projeto):
+    python tools/gera_musica.py
+        gera o jogo.asm com as musicas de tools/musicas/lista.txt, na ordem do menu
+    python tools/gera_musica.py --validar [partitura.txt ...]
+        so' confere as partituras e a jogabilidade, sem alterar o jogo.asm
+        (sem arquivos, confere todas as da lista)
+    python tools/gera_musica.py jogo.asm a.txt b.txt ...
+        usa as partituras dadas em vez da lista
 
 Especificacao completa do formato: docs/formato_partitura.md
 """
@@ -45,6 +48,7 @@ LARG_NOME, LARG_PAINEL = 20, 9
 
 
 def midi(nome):
+    """Converte o nome de uma nota (ex.: F#4, Bb3) no numero MIDI."""
     m = re.fullmatch(r"([A-G])([#b]?)(-?\d)", nome)
     if not m:
         raise ValueError(f"nota invalida: {nome!r} (use ex.: C4, F#3, Bb4)")
@@ -53,14 +57,17 @@ def midi(nome):
 
 
 def nome_midi(n):
+    """Converte um numero MIDI no nome da nota (o inverso de midi)."""
     return ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][n % 12] + str(n // 12 - 1)
 
 
 def freq_hz(n):
+    """Frequencia em Hz de uma nota MIDI, na afinacao temperada (A4 = 440 Hz)."""
     return round(440 * 2 ** ((n - 69) / 12))
 
 
 def texto_tela(caminho, num, texto, largura):
+    """Valida um texto de nome ou painel e o completa com espacos ate a largura."""
     texto = texto.upper()
     if len(texto) > largura:
         raise SystemExit(f"{caminho}:{num}: '{texto}' passa de {largura} caracteres")
@@ -70,6 +77,7 @@ def texto_tela(caminho, num, texto, largura):
 
 
 def le_partitura(caminho):
+    """Le as diretivas e os eventos (notas e pausas) de um arquivo de partitura."""
     info = {"nome": None, "painel": None, "onda": 2, "slots_por_tempo": 4, "mapa": {}, "eventos": []}
     with open(caminho, encoding="utf-8") as f:
         for num, linha in enumerate(f, 1):
@@ -132,11 +140,13 @@ def le_nota(caminho, num, texto):
 
 
 def pistas_automaticas(eventos):
+    """Sem linha 'pistas': divide as alturas usadas nas 4 pistas, da grave para a aguda."""
     alturas = sorted({n for notas, _, _ in eventos for n, _ in notas})
     return {n: i * 4 // len(alturas) for i, n in enumerate(alturas)}
 
 
 def gera_mapa(caminho, info):
+    """Gera o mapa da musica: uma palavra por frame (pistas, nota e duracao)."""
     mapa = info["mapa"] or pistas_automaticas(info["eventos"])
     spt = info["slots_por_tempo"]
     musica, usadas, total_notas = [], set(), 0
@@ -176,6 +186,7 @@ def gera_mapa(caminho, info):
 
 
 def bloco_asm(musicas):
+    """Escreve o bloco do jogo.asm: tabelas do menu, mapas das musicas e freqs."""
     n = len(musicas)
     L = [f"; >>> MUSICA  (gerado por tools/gera_musica.py - nao edite a mao)",
          f"; Musicas, na ordem do menu: " + ", ".join(m["nome"].strip() for m in musicas),
@@ -253,14 +264,24 @@ def valida(caminho):
     return not erros
 
 
+LISTA = "tools/musicas/lista.txt"
+
+
+def le_lista():
+    """Partituras do menu, na ordem de tools/musicas/lista.txt (um arquivo por linha)."""
+    pasta = LISTA.rsplit("/", 1)[0]
+    with open(LISTA, encoding="utf-8") as f:
+        nomes = [l.split("#", 1)[0].strip() for l in f]
+    return [f"{pasta}/{n}" for n in nomes if n]
+
+
 def main():
-    if len(sys.argv) >= 3 and sys.argv[1] == "--validar":
-        resultados = [valida(c) for c in sys.argv[2:]]
+    args = sys.argv[1:]
+    if args[:1] == ["--validar"]:
+        resultados = [valida(c) for c in (args[1:] or le_lista())]
         sys.exit(0 if all(resultados) else 1)
-    if len(sys.argv) < 3:
-        print(__doc__)
-        sys.exit(1)
-    caminho_asm, partituras = sys.argv[1], sys.argv[2:]
+    caminho_asm = args[0] if args else "jogo.asm"
+    partituras = args[1:] or le_lista()
     musicas = []
     for caminho in partituras:
         info = le_partitura(caminho)

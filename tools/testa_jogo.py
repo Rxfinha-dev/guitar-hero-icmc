@@ -3,7 +3,7 @@
 Cada cenario joga a musica inteira no nivel de velocidade 9 (o mais rapido, para
 o teste terminar logo) e confere a caixa de FIM DE JOGO na tela final.
 
-Uso (na raiz do projeto, depois de ./build.sh e de montar o cpuram.mif):
+Uso (na raiz do projeto, depois de ./build.sh e python tools/gera_jogo.py):
     python tools/testa_jogo.py
 """
 
@@ -18,13 +18,13 @@ HARNESS = os.path.join(RAIZ, "tools", "headless", "headless" + (".exe" if os.nam
 # frames: a partida acaba por volta de 48 milhoes de ciclos.
 CICLOS = "80000000"
 INICIO = ["--key", "300000:9", "--key", "350000: "]   # nivel 9 no menu e depois ESPACO
-TOTAL_NOTAS = 63
 
 
 MSYS2_BIN = r"C:\msys64\ucrt64\bin"
 
 
 def ambiente():
+    """Variaveis de ambiente para rodar o harness."""
     # No Windows o harness precisa das DLLs do MSYS2 (GTK/glib). Outras copias no
     # PATH (ex.: a do Git) sao incompativeis e o Windows aborta com 0xC0000139.
     env = os.environ.copy()
@@ -34,6 +34,7 @@ def ambiente():
 
 
 def roda(*args):
+    """Executa o jogo no harness headless e devolve o que ele imprimiu."""
     r = subprocess.run([HARNESS, "cpuram.mif", "charmap.mif", *args], cwd=RAIZ,
                        capture_output=True, text=True, timeout=600, env=ambiente())
     if r.returncode != 0:
@@ -42,10 +43,12 @@ def roda(*args):
 
 
 def ultima_tela(saida):
+    """Devolve a ultima tela impressa pelo harness."""
     return saida.rsplit("---- tela no ciclo", 1)[1]
 
 
 def resultado(saida):
+    """Le os numeros da caixa de FIM DE JOGO na ultima tela."""
     tela = ultima_tela(saida)
     def num(rotulo, padrao=r"(\d+)"):
         m = re.search(rotulo + r"\s+" + padrao, tela)
@@ -72,6 +75,7 @@ def musicas_do_jogo():
 
 
 def som(saida):
+    """Le o resumo de som do harness: (notas, SOUND, SNDN, ms de CPU travada)."""
     m = re.search(r"som: (\d+) notas \((\d+) bloqueantes / SOUND, (\d+) nao-bloqueantes / SNDN\); "
                   r"CPU travada por (\d+) ms", saida)
     return tuple(int(g) for g in m.groups())

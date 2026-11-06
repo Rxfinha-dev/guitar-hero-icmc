@@ -1,0 +1,8 @@
+# Musicas do menu do jogo, na ordem em que aparecem (tecla M troca).
+# Um arquivo de tools/musicas/ por linha. Para incluir uma musica nova,
+# acrescente o nome do arquivo e rode: python tools/gera_jogo.py
+ode_alegria.txt
+arpejo_la_menor.txt
+minha_musica.txt
+minha_tab.txt
+boate.azul.txt

@@ -45,6 +45,66 @@ Prof. Eduardo do Valle Simões.
 
 > **TODO:** link do vídeo explicando o projeto (YouTube/Drive).
 
+## Como rodar o jogo
+
+**1. Instale as dependências** (só na primeira vez)
+
+- **Linux (Debian/Ubuntu):**
+  ```bash
+  sudo apt install build-essential pkg-config libgtk2.0-dev libsdl2-dev python3
+  ```
+- **Windows:** instale o [MSYS2](https://www.msys2.org/) e o Python. Depois, abra o terminal
+  **MSYS2 UCRT64** e rode:
+  ```bash
+  pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gtk2 mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-pkgconf
+  ```
+
+No Windows, use o terminal **MSYS2 UCRT64** em todos os passos seguintes. Em outro terminal, como o
+Git Bash, acrescente `C:\msys64\ucrt64\bin` ao `PATH` para os programas acharem as bibliotecas.
+
+**2. Entre na pasta do projeto**
+
+```bash
+cd guitar-hero-icmc
+```
+
+**3. Compile os programas** (só na primeira vez ou depois de mudar o código em C/C++; feche o simulador antes)
+
+```bash
+./build.sh
+```
+
+**4. Gere e monte o jogo** (só depois de mudar músicas, telas, sprites ou o `jogo.asm`)
+
+```bash
+python tools/gera_jogo.py
+```
+
+**5. Abra o simulador**
+
+```bash
+./Simulador/sim cpuram.mif charmap.mif
+```
+
+No Windows, o programa se chama `sim.exe`:
+
+```bash
+./Simulador/sim.exe cpuram.mif charmap.mif
+```
+
+**6. Jogue**
+
+1. Aperte **Home** na janela do simulador para iniciar a execução automática.
+2. No menu, escolha a velocidade com `1` a `9` e troque de música com `M`.
+3. Aperte `ESPAÇO` para começar.
+4. Use `D` `F` `J` `K` quando a nota estiver sobre o alvo.
+
+Para conferir se está tudo funcionando, rode os testes:
+
+```bash
+python tools/testa_tudo.py
+```
+
 ## Como jogar
 
 | Tecla | Ação |
@@ -54,208 +114,94 @@ Prof. Eduardo do Valle Simões.
 | `ESPAÇO` | começa a música / joga de novo |
 | `D` `F` `J` `K` | acerta a nota da pista verde, vermelha, amarela, azul |
 
-As notas descem pelas 4 pistas. Aperte a tecla da pista quando a nota estiver sobre o alvo:
-
-- **No alvo, com folga de 1 linha para cima ou para baixo:** 10 pontos (`PERFEITO!`) e uma faísca no alvo
-- **A 2 linhas do alvo:** 5 pontos (`QUASE`) e uma faísca no alvo
+- **No alvo, com folga de 1 linha:** 10 pontos (`PERFEITO!`) e uma faísca
+- **A 2 linhas do alvo:** 5 pontos (`QUASE`) e uma faísca
 - **A cada 10 acertos seguidos** o multiplicador sobe, até **x4**
 - **Deixar a nota passar** zera o combo (`ERROU!`)
-- **Apertar sem nota por perto:** o alvo da pista fica todo preenchido na cor dela e o combo zera
-- **Duas notas da mesma pista na janela:** a tecla vale para a mais antiga (a mais baixa)
+- **Apertar sem nota por perto** preenche o alvo da pista e zera o combo
 
-A música (*Ode à Alegria*, de Beethoven) toca sozinha: cada nota soa exatamente quando chega ao alvo.
-No fim aparecem pontos, acertos, combo máximo, precisão e um conceito (S, A, B, C, D).
-
-## Como montar e rodar
-
-**Dependências:**
-- **Linux (Debian/Ubuntu):** `sudo apt install build-essential pkg-config libgtk2.0-dev libsdl2-dev python3`
-- **Windows:** [MSYS2](https://www.msys2.org/) UCRT64 com
-  `pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gtk2 mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-pkgconf`
-
-```bash
-./build.sh                                  # montador + simulador + Simple Simulator + harness de testes
-./Montador/montador jogo.asm cpuram.mif     # monta o jogo
-./Simulador/sim cpuram.mif charmap.mif      # roda (no Windows: .exe)
-```
-
-No simulador, aperte **Home** para executar em modo automático e depois use as teclas do jogo.
-
-**Velocidade e sincronia:** o simulador roda com **clock fixo de 5 MHz** (`CLOCK_HZ` em
-`Simulador/Mneumonicos.h`), como uma placa de verdade, em vez de "o mais rápido possível". Assim um
-frame do jogo dura exatamente o que a tabela `tabMsFrame` diz (65 ms no nível 5), em qualquer computador,
-e a música fica sincronizada com as notas: medido com `python tools/mede_sincronia.py`, cada nota termina
-a menos de 0,5% do início da seguinte. A pausa do clock também deixa a janela redesenhar com
-regularidade, por isso as notas descem sem trancos. Os níveis 1 a 9 do menu continuam escolhendo a
-dificuldade. Para conferir o clock, rode `testes/calibra.asm`: devem sair ~250 blocos por segundo na linha 0.
-
-**Áudio:** para conferir o som sem abrir o jogo, rode o teste de ouvido
-(`g++ testes/teste_beep.cpp Simulador/Sound.cpp -ISimulador -o testes/teste_beep -lSDL2`).
-Ele toca Dó-Ré-Mi com `SOUND` e a Ode à Alegria com `SNDN`. Se ficar mudo, o
-`testes/diagnostico_audio.cpp` mostra o formato que a placa de som aceitou. O volume fica na constante
-`AMPLITUDE` de `Simulador/Sound.h` (hoje 7000, um quarto do original). Cada nota entra e sai com uma
-rampa de 5 ms para não estalar, e o áudio é gerado em blocos de ~12 ms para sair junto com a imagem.
+A música toca sozinha, e cada nota soa no instante em que chega ao alvo. No fim aparecem pontos,
+acertos, combo máximo, precisão e um conceito (S, A, B, C, D).
 
 ## Modificação na arquitetura: instrução `SNDN`
 
-**O problema.** A instrução `SOUND Rx, Ry, Rz` do Processador ICMC **bloqueia a CPU** até a nota terminar
-(`Sound.cpp` chama `beeper.wait()` e ainda reinicializa o SDL a cada nota). Num jogo de ritmo isso é fatal:
-enquanto a música toca, as notas param de cair e o teclado não é lido.
-
-**A solução.** A nova instrução **`SNDN Rx, Ry, Rz`** (*sound, non-blocking*) recebe os mesmos operandos,
-mas apenas inicia a nota e devolve o controle à CPU no ciclo seguinte.
+A instrução original `SOUND Rx, Ry, Rz` **trava a CPU** até a nota terminar; num jogo de ritmo, as notas
+param de cair enquanto a música toca. A nova **`SNDN Rx, Ry, Rz`** recebe os mesmos operandos
+(frequência em Hz, duração em ms, forma de onda), mas só inicia a nota e devolve o controle na hora.
 
 | | |
 |---|---|
-| **Sintaxe** | `SNDN Rx, Ry, Rz` (Rx = frequência em Hz, Ry = duração em ms, Rz = forma de onda 0–3) |
-| **Opcode** | `110110` (54), um opcode livre da família de E/S, vizinho de `SOUND` (`110100`) e `INCHAR` (`110101`) |
-| **Formato** | `110110 \| Rx(3) \| Ry(3) \| Rz(3) \| 0`, uma palavra, igual ao `SOUND` |
-| **Semântica** | síntese monofônica: interrompe a nota que estiver tocando e começa a nova |
+| **Opcode** | `110110` (54), livre, vizinho de `SOUND` (`110100`) e `INCHAR` (`110101`) |
+| **Formato** | `110110 \| Rx \| Ry \| Rz \| 0`, uma palavra, igual ao `SOUND` |
+| **Semântica** | interrompe a nota que estiver tocando e começa a nova (monofônico) |
+| **Resultado** | música inteira: CPU travada **24 960 ms** com `SOUND` e **0 ms** com `SNDN` |
 
-**Resultado medido** (música inteira no nível 5, com `tools/versao_sound.py` + harness):
-
-| Versão | CPU travada pelo som |
-|---|---|
-| `SOUND` (original) | **24 960 ms**, a música inteira |
-| `SNDN` (nova) | **0 ms** |
-
-Os detalhes (motivação, decisões de projeto e cada arquivo alterado) estão em
+Implementada no simulador (`Simulador/`) e no montador (`Montador/`): veja
 [docs/nova_instrucao.md](docs/nova_instrucao.md).
+
+**Outras melhorias no simulador:** clock fixo de 5 MHz (o jogo tem a mesma velocidade em qualquer
+computador e a janela redesenha sem trancos), áudio funcionando no Windows, volume menor, sem estalos
+e com ~12 ms de latência.
 
 ## Simple Simulator (requisito 2)
 
-[`SimpleSimulator/simple_simulator.c`](SimpleSimulator/simple_simulator.c) é o processador ICMC implementado
-**ciclo a ciclo** em C, a partir do template do professor: estados `FETCH → DECODE → EXECUTE → EXECUTE2`,
-muxes `M1`–`M6`, ULA e sinais de controle (`LoadPC`, `IncSP`, `RW`…). Todas as instruções foram completadas.
+[`SimpleSimulator/simple_simulator.c`](SimpleSimulator/simple_simulator.c) é o processador ICMC
+**ciclo a ciclo** em C, a partir do template da disciplina (estados `FETCH → DECODE → EXECUTE`,
+muxes `M1`–`M6`, ULA e sinais de controle), com todas as instruções completadas. Os testes
+`testes/simples/TesteCPU.asm` e `TesteExtra.asm` rodam no `python tools/testa_tudo.py`.
+
+## Músicas
+
+As músicas do menu e a ordem delas ficam em **`tools/musicas/lista.txt`**, um arquivo por linha.
+
+- **Escrever uma partitura:** formato em [docs/formato_partitura.md](docs/formato_partitura.md)
+  (inclui um prompt pronto para pedir a transcrição a um modelo de IA).
+- **Converter uma tablatura** em texto (padrão Cifra Club):
+  ```bash
+  python tools/tab_para_jogo.py minha_tab.txt -o tools/musicas/minha_tab.txt --nome "MINHA TAB"
+  ```
+  O ritmo é deduzido do espaçamento da tab; use `--max-tempos 1.5` para encurtar pausas longas e
+  `--frames-por-unidade 6` para deixar a música mais lenta.
+- **Colocar no jogo:** acrescente o nome do arquivo em `tools/musicas/lista.txt` e rode
+  `python tools/gera_jogo.py`.
+- **Conferir:** `python tools/gera_musica.py --validar` aponta notas fora da faixa ou impossíveis de jogar.
+
+> Músicas comerciais são protegidas por direito autoral. Se o repositório for público, prefira obras
+> em domínio público (como a Ode à Alegria) ou composições próprias.
+
+## Testes
 
 ```bash
-cd testes/simples && ../../Montador/montador TesteCPU.asm cpuram.mif && ../../SimpleSimulator/simples
-# saída esperada: ABCDEFGHIJKLMNOP   (uma letra por instrução testada)
+python tools/testa_tudo.py
 ```
 
-`testes/simples/TesteExtra.asm` cobre o que o `TesteCPU` não cobre e o jogo usa (`MOD`, `PUSH FR`/`POP FR`,
-`MOV SP`, chamadas aninhadas, `jle`/`jeg`/`jel`). Saída esperada: `abcdefghij`, idêntica ao simulador gráfico.
+Confere as partituras, o conversor de tablatura, o jogo inteiro (um "robô" joga cada música do menu
+no simulador sem janela e o teste confere pontos, janelas de acerto, efeitos visuais e reinício) e o
+Simple Simulator. Leva cerca de 10 segundos.
 
 ## Estrutura do repositório
 
 ```
 jogo.asm                 o jogo (Assembly do Processador ICMC, comentado linha a linha)
-cpuram.mif               jogo montado
-charmap.mif              charmap com os sprites do jogo (códigos 1..17)
-build.sh                 compila tudo
-Simulador/               simulador gráfico (GTK2 + SDL2) com a instrução SNDN
+cpuram.mif, charmap.mif  jogo montado e caracteres com os sprites do jogo
+build.sh                 compila os programas em C/C++
+Simulador/               simulador gráfico (GTK2 + SDL2) com SNDN, clock fixo e áudio corrigido
 Montador/                montador com a instrução SNDN
 SimpleSimulator/         processador ciclo a ciclo em C (requisito 2)
-docs/nova_instrucao.md   documentação da modificação de arquitetura
+docs/                    documentação técnica (PDF), nova instrução e formato de partitura
 tools/
-  telas/*.txt            desenhos das telas (jogo, menu, fim de jogo)
-  musicas/*.txt          partituras
-  gera_telas.py          desenhos -> strings do jogo.asm
-  gera_musica.py         partitura -> mapa de notas + tabela de frequências no jogo.asm
-  tab_para_jogo.py       tablatura em texto (padrão Cifra Club) -> partitura do jogo
-  testa_tab.py           testes do conversor de tablatura
+  gera_jogo.py           regenera tudo e monta o jogo (usa os três geradores abaixo)
   gera_charmap.py        sprites -> charmap.mif
-  versao_sound.py        gera a versão "antes" (com SOUND) para comparação
-  testa_jogo.py          testes automáticos do jogo
-  headless/              simulador sem janela, para testes (usa o mesmo Model.cpp)
-testes/                  programas de teste e calibração
+  gera_telas.py          tools/telas/*.txt -> telas do jogo.asm
+  gera_musica.py         tools/musicas/*.txt (lista.txt) -> músicas do jogo.asm
+  tab_para_jogo.py       tablatura em texto -> partitura do jogo
+  gera_doc.py            docs/documentacao_tecnica.md -> PDF
+  testa_tudo.py          roda todos os testes (testa_jogo.py, testa_tab.py, Simple Simulator)
+  headless/              simulador sem janela usado pelos testes (mesmo Model.cpp)
+  versao_sound.py, mede_sincronia.py   comparação SOUND x SNDN e medição da sincronia
+testes/                  programas de teste (som, clock, áudio, Simple Simulator)
 ```
 
-### Arquitetura do jogo
-
-- **Tela:** 40 × 30. As notas nascem na linha 3, descem 1 linha por frame e o alvo fica na linha 25.
-  A janela de acerto vai da linha 23 à 27: 24–26 é perfeito e 23 ou 27 é quase. No nível 5 cada
-  linha dura ~65 ms, então o "perfeito" aceita ~65 ms de erro para cada lado. As mensagens ficam
-  na linha 28, abaixo da última linha por onde as notas passam.
-- **Mapa da música:** uma palavra de 16 bits por frame. Bits 3–0: pistas que recebem nota.
-  Bits 9–4: índice da nota em `freqs`. Bits 13–10: duração em frames. `65535` marca o fim.
-- **Sincronia:** uma nota leva 22 frames da linha 3 ao alvo, então a melodia lê o mapa com 22 frames
-  de atraso. O som sai no instante em que a nota passa pelo alvo.
-- **Notas ativas:** 16 slots em vetores paralelos (`notaY`, `notaPista`).
-- **Laço do jogo:** `MoveNotas → SpawnNotas → TocaMelodia (SNDN) → AtualizaEfeitos → AtualizaHUD → Delay`.
-  O `Delay` lê o teclado a cada 5 instruções, então nenhuma tecla se perde.
-- **Cenário:** os desenhos usam letras minúsculas como "códigos de sprite" (`p` = divisória,
-  `e f g` = alvo verde…), traduzidas pela tabela `traduz`. As notas são apagadas
-  **redesenhando o cenário por baixo**, assim a pista e o alvo nunca somem.
-
-## Como criar novas músicas
-
-O menu oferece todas as músicas passadas ao gerador, **na ordem dos arquivos** (tecla `M` troca).
-Hoje são `ode_alegria.txt`, `arpejo_la_menor.txt` e `minha_musica.txt` (um modelo para você substituir).
-
-1. Escreva a partitura em `tools/musicas/minha_musica.txt` (ou crie outro `.txt` no mesmo formato).
-2. Gere e monte, listando **todas** as músicas que devem aparecer no menu (a que ficar de fora some do jogo):
-   ```bash
-   python tools/gera_musica.py jogo.asm tools/musicas/ode_alegria.txt tools/musicas/arpejo_la_menor.txt tools/musicas/minha_musica.txt
-   ./Montador/montador jogo.asm cpuram.mif
-   ```
-3. Confira com `python tools/testa_jogo.py`. O teste joga cada música do menu e exige que o robô
-   acerte todas as notas; se ele falhar, há notas próximas demais na mesma pista.
-
-### Como transcrever uma música
-
-> A especificação completa, para entregar a um transcritor ou colar num modelo de IA (com prompt
-> pronto, regras de ritmo, tercinas, MIDI, tablatura e checklist), está em
-> [docs/formato_partitura.md](docs/formato_partitura.md). Para conferir um arquivo transcrito:
-> `python tools/gera_musica.py --validar tools/musicas/minha_musica.txt`.
-
-**Resumo do formato:**
-```
-nome MINHA MUSICA          # nome no menu (até 20 caracteres)
-painel MINHA|MUSICA|       # 3 linhas do painel lateral (até 9 caracteres cada)
-onda 1                     # 0 seno, 1 quadrada (guitarra de videogame), 2 triangular, 3 dente de serra
-slots_por_tempo 8          # frames por tempo (semínima)
-pistas A3=0 C4=1 E4=2 G4=3 # pista (0=D, 1=F, 2=J, 3=K) de cada altura usada
-E4 0.5                     # NOTA DURAÇÃO_EM_TEMPOS   (1 = semínima, 0.5 = colcheia, 0.25 = semicolcheia)
-- 1                        # pausa
-A3+E4 2                    # duas notas juntas (só a primeira soa)
-```
-
-**Passo a passo, partindo de uma tablatura de guitarra:**
-
-1. **Converta cada número da tablatura em nota.** Cada corda solta tem uma nota na afinação padrão,
-   da mais grave para a mais aguda:
-
-   | Corda | 6ª (E grave) | 5ª | 4ª | 3ª | 2ª | 1ª (e aguda) |
-   |---|---|---|---|---|---|---|
-   | Solta | E2 | A2 | D3 | G3 | B3 | E4 |
-
-   Cada casa sobe um semitom: C → C# → D → D# → E → F → F# → G → G# → A → A# → B → (C da oitava seguinte).
-   Exemplo genérico: corda G (G3) na casa 5 → G#3, A3, A#3, B3, **C4**.
-2. **Respeite a faixa do jogo, C3 a D8.** Notas mais graves que C3 (comuns nas cordas E e A)
-   devem subir uma oitava inteira (+12 semitons, ex.: E2 → E3). O gerador avisa quando uma nota sai da faixa.
-3. **Durações.** Anote o tempo de cada nota em relação à semínima (1). Em riffs rápidos de
-   semicolcheias use `slots_por_tempo 8`: cada semicolcheia vira 2 frames. Se ficar difícil de jogar,
-   aumente para 12 (o jogo fica mais lento e espaçado).
-4. **Pistas.** Na linha `pistas`, distribua as alturas da mais grave (0) para a mais aguda (3), como no
-   Guitar Hero. Evite a mesma pista em notas a menos de 3 frames de distância: ficam impossíveis de acertar.
-5. **Teste:** gere, monte e jogue (veja os comandos acima).
-
-> Músicas comerciais são protegidas por direito autoral. Uma transcrição feita por você para uso
-> pessoal ou acadêmico é escolha sua, mas se o repositório for público prefira deixar esse `.txt` de fora
-> (ou use músicas em domínio público, como a Ode à Alegria).
-
-Para alterar telas ou sprites: edite `tools/telas/*.txt` ou `tools/gera_charmap.py` e rode
-`python tools/gera_telas.py jogo.asm tools/telas/jogo.txt tools/telas/menu.txt tools/telas/fim.txt` ou
-`python tools/gera_charmap.py <charmap original> charmap.mif`.
-
-## Testes
-
-```bash
-python tools/testa_jogo.py
-```
-
-Os testes jogam a música inteira no harness headless, com um "robô" que lê a tela e aperta as teclas.
-Cada cenário confere o resultado final:
-
-| Cenário | Resultado esperado |
-|---|---|
-| acerta tudo na linha 25, 24 ou 26 | 63/63, 1920 pontos (`PERFEITO`), conceito S |
-| acerta tudo na linha 23 ou 27 | 63/63, 960 pontos (`QUASE`) |
-| aperta fora da janela | 0 acertos, conceito D |
-| ninguém joga | 0 acertos, conceito D |
-| cada música extra do menu | o robô acerta todas as notas |
-| tecla sem nota | alvo preenchido, sem faísca, 1 erro, e depois o alvo volta ao normal |
-| reinício | `ESPAÇO` volta ao menu e a nova partida começa zerada |
-
-Os testes também conferem as notas da melodia tocadas via `SNDN`, com 0 ms de CPU travada.
+A documentação técnica completa (dados, tempo, cada subrotina, ferramentas e testes) está em
+[docs/documentacao_tecnica.pdf](docs/documentacao_tecnica.pdf). Para regenerá-la depois de mudar o
+texto em `docs/documentacao_tecnica.md`: `python tools/gera_doc.py`.

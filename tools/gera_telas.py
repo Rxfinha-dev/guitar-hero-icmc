@@ -18,8 +18,9 @@ minusculas sao "codigos de sprite", traduzidos no Assembly pela tabela `traduz`
 (ex.: 'p' = divisoria da pista, 'e' 'f' 'g' = alvo verde). Veja a legenda no
 cabecalho do jogo.asm.
 
-Uso:
-    python tools/gera_telas.py jogo.asm tools/telas/jogo.txt tools/telas/menu.txt ...
+Uso (na raiz do projeto):
+    python tools/gera_telas.py                      (as 3 telas: jogo, menu e fim)
+    python tools/gera_telas.py jogo.asm tools/telas/jogo.txt ...
 """
 
 import re
@@ -27,6 +28,7 @@ import sys
 
 
 def le_tela(caminho):
+    """Le um desenho de tools/telas e confere os caracteres e a largura das linhas."""
     prefixo, largura, linhas = None, None, []
     with open(caminho, encoding="utf-8") as f:
         for n, linha in enumerate(f.read().splitlines(), 1):
@@ -52,6 +54,7 @@ def le_tela(caminho):
 
 
 def injeta(asm, prefixo, linhas, origem):
+    """Troca, no jogo.asm, o bloco da tela entre os marcadores >>> e <<<."""
     inicio = f"; >>> TELA {prefixo}"
     fim = f"; <<< TELA {prefixo}"
     if inicio not in asm or fim not in asm:
@@ -64,14 +67,15 @@ def injeta(asm, prefixo, linhas, origem):
     return antes + "\n".join(bloco) + depois
 
 
+TELAS = ["tools/telas/jogo.txt", "tools/telas/menu.txt", "tools/telas/fim.txt"]
+
+
 def main():
-    if len(sys.argv) < 3:
-        print(__doc__)
-        sys.exit(1)
-    caminho_asm = sys.argv[1]
+    caminho_asm = sys.argv[1] if len(sys.argv) > 1 else "jogo.asm"
+    telas = sys.argv[2:] or TELAS
     with open(caminho_asm, encoding="utf-8") as f:
         asm = f.read()
-    for caminho in sys.argv[2:]:
+    for caminho in telas:
         prefixo, linhas = le_tela(caminho)
         asm = injeta(asm, prefixo, linhas, caminho.replace("\\", "/"))
         print(f"{caminho}: {len(linhas)} linhas -> rotulos {prefixo}00..{prefixo}{len(linhas) - 1:02d}")

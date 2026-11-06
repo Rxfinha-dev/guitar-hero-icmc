@@ -20,8 +20,6 @@
 //     --tempo-real S      executa por S segundos de relogio usando a MESMA rotina do
 //                         modo automatico do simulador (processaAutomatico, com o
 //                         clock fixo) e imprime a tela; serve para medir o clock
-//     --gui-lock          envolve cada instrucao em gdk_threads_enter/leave,
-//                         como faz o simulador grafico (para medir velocidade)
 //
 // A execucao termina no HALT ou ao atingir --cycles.
 
@@ -108,7 +106,7 @@ int main(int argc, char *argv[])
 	long maxCycles = 2000000;
 	std::multimap<long, int> keys;
 	std::set<long> dumps;
-	bool colors = false, quiet = false, guiLock = false, autoplay = false;
+	bool colors = false, quiet = false, autoplay = false;
 	int linhaRobo = 25;
 	int memStart = -1, memCount = 1;
 	int glyphFrom = -1, glyphTo = -1;
@@ -125,7 +123,6 @@ int main(int argc, char *argv[])
 		else if (!strcmp(argv[i], "--dump") && i + 1 < argc) dumps.insert(atol(argv[++i]));
 		else if (!strcmp(argv[i], "--colors")) colors = true;
 		else if (!strcmp(argv[i], "--quiet")) quiet = true;
-		else if (!strcmp(argv[i], "--gui-lock")) guiLock = true;
 		else if (!strcmp(argv[i], "--autoplay")) autoplay = true;
 		else if (!strcmp(argv[i], "--tempo-real") && i + 1 < argc) tempoReal = atof(argv[++i]);
 		else if (!strcmp(argv[i], "--autoplay-linha") && i + 1 < argc) { autoplay = true; linhaRobo = atoi(argv[++i]); }
@@ -144,7 +141,7 @@ int main(int argc, char *argv[])
 		else { fprintf(stderr, "opcao desconhecida: %s\n", argv[i]); return 1; }
 	}
 
-	if (guiLock || tempoReal > 0) {
+	if (tempoReal > 0) {
 		g_thread_init(NULL);
 		gdk_threads_init();
 	}
@@ -217,13 +214,7 @@ int main(int argc, char *argv[])
 			}
 		}
 		g_soundCycle = ciclo;
-		if (guiLock) {
-			gdk_threads_enter();
-			m.processador();
-			gdk_threads_leave();
-		} else {
-			m.processador();
-		}
+		m.processador();
 		if (dumps.count(ciclo)) dumpScreen(m, ciclo, colors);
 	}
 

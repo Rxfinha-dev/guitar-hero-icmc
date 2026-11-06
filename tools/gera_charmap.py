@@ -1,11 +1,12 @@
-"""Gera o charmap.mif do jogo a partir do charmap original do Processador ICMC.
+"""Desenha os sprites do jogo no charmap.mif.
 
-O charmap original deixa os caracteres de controle (codigos 0 a 31) em branco e
-"livres para edicao". Este script desenha os sprites do jogo nesses codigos e
-mantem todo o resto (letras, numeros, simbolos) exatamente como no original.
+O charmap original do Processador ICMC deixa os caracteres de controle (codigos
+0 a 31) em branco e "livres para edicao". Este script desenha os sprites do jogo
+nesses codigos e mantem todo o resto (letras, numeros, simbolos) como no original.
 
 Uso:
-    python tools/gera_charmap.py <charmap_original.mif> <charmap_saida.mif>
+    python tools/gera_charmap.py                     (regrava o charmap.mif do projeto)
+    python tools/gera_charmap.py <entrada.mif> <saida.mif>
 
 Cada sprite e' uma matriz 8x8: '#' = pixel aceso, '.' = apagado.
 A cor NAO faz parte do sprite: ela e' escolhida no Assembly, somando
@@ -220,10 +221,8 @@ for _parte, _codigo in (("ESQ", 1), ("MEIO", 2), ("DIR", 3)):
     SPRITES[23 + _codigo] = (f"NOTA_{_parte}_MEIA_BAIXO",                     # 24, 25, 26
                              _nota[8 - DESLOCAMENTO:] + ["........"] * DESLOCAMENTO)
 
-LINHA_LIVRES = "[0..255]"
-
-
 def valida():
+    """Recusa codigos invalidos (fora de 1..31 ou o 4) e desenhos que nao sejam 8x8."""
     for codigo, (nome, linhas) in SPRITES.items():
         if codigo == 4 or not 1 <= codigo <= 31:
             raise ValueError(f"sprite {nome}: codigo {codigo} invalido (use 1..31, exceto 4)")
@@ -253,25 +252,27 @@ def bloco_caracteres_controle():
 
 
 def main():
-    if len(sys.argv) != 3:
-        print(__doc__)
-        sys.exit(1)
+    # sem argumentos: regrava o charmap.mif do proprio projeto
+    entrada = sys.argv[1] if len(sys.argv) > 1 else "charmap.mif"
+    saida = sys.argv[2] if len(sys.argv) > 2 else entrada
     valida()
-    with open(sys.argv[1], encoding="latin-1", newline="") as f:
+    with open(entrada, encoding="latin-1", newline="") as f:
         texto = f.read()
     # O load_charmap do simulador usa fseek(-1) em modo texto: no Windows isso
     # so' funciona com quebras CRLF. Preserva a quebra de linha do original.
     quebra = "\r\n" if "\r\n" in texto else "\n"
     linhas = texto.splitlines()
 
-    idx = next(i for i, l in enumerate(linhas) if l.strip().startswith(LINHA_LIVRES))
-    # remove tambem o comentario "-- CARACTERES DE CONTROLE ..." logo acima
-    inicio = idx - 1 if linhas[idx - 1].startswith("--") else idx
-    novas = linhas[:inicio] + bloco_caracteres_controle() + linhas[idx + 1:]
+    # O bloco dos codigos 0..31 vai do comentario "-- CARACTERES DE CONTROLE" ate'
+    # o comentario "-- SPACE" (codigo 32). Vale tanto para o charmap original
+    # quanto para um ja' gerado, entao o script pode ser rodado de novo.
+    inicio = next(i for i, l in enumerate(linhas) if l.startswith("-- CARACTERES DE CONTROLE"))
+    fim = next(i for i, l in enumerate(linhas) if l.startswith("-- SPACE"))
+    novas = linhas[:inicio] + bloco_caracteres_controle() + [""] + linhas[fim:]
 
-    with open(sys.argv[2], "w", encoding="latin-1", newline="") as f:
+    with open(saida, "w", encoding="latin-1", newline="") as f:
         f.write(quebra.join(novas) + quebra)
-    print(f"charmap gerado: {sys.argv[2]} ({len(SPRITES)} sprites)")
+    print(f"charmap gerado: {saida} ({len(SPRITES)} sprites)")
 
 
 if __name__ == "__main__":

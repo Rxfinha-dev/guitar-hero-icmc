@@ -208,6 +208,7 @@ def duracoes_em_frames(colunas, frames_por_unidade, max_tempos):
 
 
 def transposicao(alturas, oitava):
+    """Semitons a somar (oitavas inteiras) para as notas caberem na faixa do jogo."""
     if oitava is not None:
         return 12 * oitava
     menor, maior = min(alturas), max(alturas)
@@ -234,6 +235,7 @@ def escolhe_pista(base, tempo, ultimo, evitar, subindo):
 
 
 def texto_duracao(frames, frames_por_unidade):
+    """Escreve uma duracao em frames como tempos da partitura (ex.: 0.5, 1/3)."""
     d = Fraction(frames, frames_por_unidade)
     if d.denominator == 1:
         return str(d.numerator)
@@ -243,11 +245,13 @@ def texto_duracao(frames, frames_por_unidade):
 
 
 def sem_acentos(texto):
+    """Remove acentos: o charmap do jogo so' tem ASCII."""
     texto = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
     return re.sub(r"[^A-Za-z0-9 ]", " ", texto).upper().split()
 
 
 def nome_e_painel(nome):
+    """Monta o nome do menu e as 3 linhas do painel a partir do nome da musica."""
     palavras = sem_acentos(nome) or ["MINHA", "TAB"]
     nome_menu = " ".join(palavras)[:gm.LARG_NOME].strip()
     linhas, atual = [], ""
@@ -265,6 +269,7 @@ def nome_e_painel(nome):
 # ----------------------------------------------------------------------------
 
 def converte(texto, args):
+    """Faz a conversao completa: do texto da tablatura ao texto da partitura."""
     blocos, avisos = le_blocos(texto)
     if not blocos:
         raise SystemExit("nenhuma tablatura encontrada (esperado linhas como 'e|---0---|')")
@@ -365,7 +370,8 @@ def main():
     print(f"partitura gerada: {args.saida}")
     ok = gm.valida(args.saida)
     if ok:
-        print("Para colocar no jogo, inclua o arquivo no comando do gerador (veja docs/formato_partitura.md, secao 10).")
+        print(f"Para colocar no jogo: acrescente '{os.path.basename(args.saida)}' em tools/musicas/lista.txt "
+              f"e rode: python tools/gera_jogo.py")
     sys.exit(0 if ok else 1)
 
 
