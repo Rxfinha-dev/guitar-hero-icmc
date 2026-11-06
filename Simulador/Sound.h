@@ -42,6 +42,9 @@ double squareWave(double freq, double amplitude, double v);
 double triangleWave(double freq, double amplitude, double v);
 double sawtoothWave(double freq, double amplitude, double v);
 
+// Abre o dispositivo de audio. Chamada uma vez, na abertura do simulador.
+void inicia_audio();
+
 // Instrucao SOUND (opcode 52): toca a nota e BLOQUEIA ate' a fila de audio esvaziar.
 void play_note (int rx, int ry, int rz);
 

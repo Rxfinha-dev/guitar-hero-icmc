@@ -173,6 +173,12 @@ static Beeper& beeperGlobal() {
     return beeper;
 }
 
+// Abrir o audio leva centenas de ms. Feito na abertura do simulador, para nao
+// congelar o programa no meio da execucao, na primeira nota.
+void inicia_audio() {
+    beeperGlobal();
+}
+
 // SOUND - rx: frequencia (Hz), ry: duracao (ms), rz: forma de onda.
 // Bloqueante: a CPU so' continua quando a nota termina de tocar.
 void play_note (int rx, int ry, int rz) {

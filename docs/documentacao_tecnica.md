@@ -613,7 +613,7 @@ sndn r1, r2, r3  ->  110110 001 010 011 0  =  1101100010100110
 - **Opcode `110110`.** Estava livre e fica na família de E/S (`1101xx`), ao lado de `SOUND` (`110100`) e `INCHAR` (`110101`). O formato é idêntico ao do `SOUND`, então o decodificador reaproveita os campos Rx, Ry e Rz sem nenhuma mudança. Numa FPGA, a unidade de controle trataria `110110` como o `SOUND`, só que sem o estado de espera.
 - **Interromper em vez de enfileirar (síntese monofônica).** Se a `SNDN` enfileirasse as notas, qualquer diferença entre a duração pedida e a duração real de um frame se acumularia, e a música sairia de sincronia com a tela ao longo da partida. Interrompendo, cada nota começa exatamente no ciclo da instrução: **quem dita o ritmo é o jogo**. É o comportamento de um "note on" num sintetizador monofônico.
 - **Mesmos operandos do `SOUND`.** Não há conceito novo a aprender, e trocar uma instrução pela outra é uma substituição de texto. O `versao_sound.py` faz exatamente isso para gerar a versão de comparação.
-- **Um único dispositivo de áudio.** O original chamava `SDL_Init` e abria o dispositivo de áudio a cada nota. Com duas instruções de som no mesmo programa, dois `SDL_OpenAudio` simultâneos falhariam. Agora há um `Beeper` global, criado na primeira nota e compartilhado por `SOUND` e `SNDN`. **O `SOUND` mantém a semântica original** (bloqueante), para não quebrar programas existentes.
+- **Um único dispositivo de áudio.** O original chamava `SDL_Init` e abria o dispositivo de áudio a cada nota. Com duas instruções de som no mesmo programa, dois `SDL_OpenAudio` simultâneos falhariam. Agora há um `Beeper` global, criado na abertura do simulador (`inicia_audio`, seção 9.2) e compartilhado por `SOUND` e `SNDN`. **O `SOUND` mantém a semântica original** (bloqueante), para não quebrar programas existentes.
 
 ## 8.4 Implementação no simulador
 
@@ -706,6 +706,7 @@ O programa `testes/calibra.asm` confere o clock: ele executa blocos de ~20 000 i
 | envelope de 5 ms no início e no fim de cada nota (`RAMPA = FREQUENCY / 200`) | sem rampa, o começo e o fim da onda são degraus e cada nota "estala" |
 | `AMPLITUDE = 7000` (era 28000) | quase o máximo de 16 bits: com a onda quadrada ficava alto demais (-12 dB) |
 | fase `v` inicializada com 0 | no original ela começava com lixo de memória |
+| áudio aberto na abertura do simulador (`inicia_audio`, chamada em `main.cpp`) | abrir o dispositivo leva de 400 a 760 ms. Feito na primeira nota, congelava o jogo bem quando ela chegava ao alvo; agora essa nota leva menos de 1 ms |
 
 # 10. Ferramentas (tools/)
 

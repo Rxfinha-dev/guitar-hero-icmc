@@ -10,6 +10,8 @@ using namespace std;
 extern "C" __declspec(dllimport) unsigned int __stdcall timeBeginPeriod(unsigned int);
 #endif
 
+void inicia_audio();	// Sound.cpp
+
 int main(int argc, char *argv[])
 {
 #ifdef _WIN32
@@ -45,6 +47,8 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	}
+
+	inicia_audio();
 
 	Model *m = new Model(argv[1], argv[2]);
 	Controller *c = new Controller(m);
