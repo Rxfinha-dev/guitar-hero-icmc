@@ -1,5 +1,5 @@
 #!/bin/bash
-# Compila o montador, o simulador grafico e o harness de testes headless.
+# Compila o montador, o simulador grafico, o Simple Simulator e o harness de testes headless.
 # Funciona no Linux e no Windows (MSYS2 UCRT64, com gtk2 e SDL2 instalados).
 set -e
 cd "$(dirname "$0")"
@@ -17,7 +17,7 @@ g++ -O2 -o Simulador/sim$EXE \
     Simulador/main.cpp Simulador/View.cpp Simulador/Controller.cpp Simulador/Sound.cpp Simulador/Model.cpp \
     $(pkg-config --cflags --libs gtk+-2.0 sdl2) -pthread -lgthread-2.0 -Wno-deprecated-declarations $LIBS_SO
 
-echo ">> Simple Simulator (requisito 2: processador ciclo a ciclo em C)"
+echo ">> Simple Simulator (requisitos 2 e 3: processador ciclo a ciclo em C, com SNDN)"
 gcc -O2 -Wall -o SimpleSimulator/simples$EXE SimpleSimulator/simple_simulator.c -lm
 
 echo ">> Harness headless (testes)"

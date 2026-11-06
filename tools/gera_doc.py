@@ -85,7 +85,7 @@ def tabela(linhas, largura):
     cab, corpo = linhas[0], linhas[1:]
     n = len(cab)
     maxlen = [max(len(l[i]) if i < len(l) else 0 for l in linhas) for i in range(n)]
-    pesos = [min(max(m, 4), 60) for m in maxlen]
+    pesos = [min(max(m, 5), 60) for m in maxlen]
     tot = sum(pesos)
     larg = [largura * p / tot for p in pesos]
     dados = [[Paragraph(inline(c), S["cellh"]) for c in cab]]
@@ -123,7 +123,8 @@ def parse(texto, largura):
             while not linhas[i].strip().startswith("```"):
                 bloco.append(linhas[i])
                 i += 1
-            story.append(Preformatted("\n".join(bloco), S["code"]))
+            # tab vira um quadrado preto na fonte do PDF; KeepTogether nao parte o bloco entre paginas
+            story.append(KeepTogether([Preformatted("\n".join(bloco).expandtabs(4), S["code"])]))
         elif s.startswith("# "):
             flush()
             if not primeiro_h1:

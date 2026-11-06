@@ -45,6 +45,18 @@ Prof. Eduardo do Valle Simões.
 
 > **TODO:** link do vídeo explicando o projeto (YouTube/Drive).
 
+## Requisitos da disciplina
+
+| Item do [trabalho da SSC0511](https://gitlab.com/simoesusp/disciplinas/-/blob/master/SSC0511-Organizacao-de-Computadores-Digitais/README.md) | Onde está |
+|---|---|
+| 1. Jogo em Assembly | [`jogo.asm`](jogo.asm), montado em [`cpuram.mif`](cpuram.mif), com os sprites em [`charmap.mif`](charmap.mif) |
+| 2. Hardware do processador no Simple Simulator | [`SimpleSimulator/simple_simulator.c`](SimpleSimulator/simple_simulator.c) |
+| 3. Nova instrução no Simple Simulator | `SNDN`, no `case SNDN` do `simple_simulator.c` |
+| 3. Montador reconhecendo a instrução | [`Montador/defs.h`](Montador/defs.h) e [`Montador/montador.c`](Montador/montador.c) |
+| 3. README descrevendo a instrução | [seção abaixo](#modificação-na-arquitetura-instrução-sndn) e [docs/nova_instrucao.md](docs/nova_instrucao.md) |
+| 4. Opcional: jogo usando a instrução em um simulador com tela | `TocaMelodia` no `jogo.asm`, rodando em [`Simulador/`](Simulador/) |
+| Vídeo explicando o projeto | link na seção [Vídeo](#vídeo) |
+
 ## Como rodar o jogo
 
 **1. Instale as dependências** (só na primeira vez)
@@ -136,19 +148,36 @@ param de cair enquanto a música toca. A nova **`SNDN Rx, Ry, Rz`** recebe os me
 | **Semântica** | interrompe a nota que estiver tocando e começa a nova (monofônico) |
 | **Resultado** | música inteira: CPU travada **24 960 ms** com `SOUND` e **0 ms** com `SNDN` |
 
-Implementada no simulador (`Simulador/`) e no montador (`Montador/`): veja
-[docs/nova_instrucao.md](docs/nova_instrucao.md).
+Implementada em três lugares, e o Assembly é o mesmo nos dois simuladores (`sndn r0, r1, r2`):
+
+- **Simple Simulator (`SimpleSimulator/`):** executa a instrução ciclo a ciclo na máquina de estados.
+  Como ele não tem áudio, mostra a nota no terminal: `[SNDN] freq=330 dur=390 onda=1`.
+- **Simulador gráfico (`Simulador/`):** toca a nota de verdade, com SDL2. É onde se joga.
+- **Montador (`Montador/`):** reconhece `SNDN` e gera o opcode.
+
+Detalhes em [docs/nova_instrucao.md](docs/nova_instrucao.md).
 
 **Outras melhorias no simulador:** clock fixo de 5 MHz (o jogo tem a mesma velocidade em qualquer
 computador e a janela redesenha sem trancos), áudio funcionando no Windows, volume menor, sem estalos
 e com ~12 ms de latência.
 
-## Simple Simulator (requisito 2)
+## Simple Simulator (requisitos 2 e 3)
 
 [`SimpleSimulator/simple_simulator.c`](SimpleSimulator/simple_simulator.c) é o processador ICMC
 **ciclo a ciclo** em C, a partir do template da disciplina (estados `FETCH → DECODE → EXECUTE`,
-muxes `M1`–`M6`, ULA e sinais de controle), com todas as instruções completadas. Os testes
-`testes/simples/TesteCPU.asm` e `TesteExtra.asm` rodam no `python tools/testa_tudo.py`.
+muxes `M1`–`M6`, ULA e sinais de controle), com as instruções completadas e a **`SNDN`** adicionada.
+Os testes `testes/simples/TesteCPU.asm`, `TesteExtra.asm` e `TesteSndn.asm` rodam no
+`python tools/testa_tudo.py`. O `TesteSndn.asm` também confere que as notas são iguais às do simulador gráfico.
+
+Para rodar um programa, monte-o como `cpuram.mif` e execute o simulador na mesma pasta do arquivo.
+Da raiz do projeto, ele carrega o próprio jogo:
+
+```bash
+./SimpleSimulator/simples
+```
+
+Ele não tem tela nem áudio: o `OUTCHAR` escreve o caractere no terminal e a `SNDN` escreve a nota.
+Para jogar de verdade, use o simulador gráfico.
 
 ## Músicas
 
@@ -182,12 +211,12 @@ Simple Simulator. Leva cerca de 10 segundos.
 ## Estrutura do repositório
 
 ```
-jogo.asm                 o jogo (Assembly do Processador ICMC, comentado linha a linha)
+jogo.asm                 o jogo (Assembly do Processador ICMC, comentado)
 cpuram.mif, charmap.mif  jogo montado e caracteres com os sprites do jogo
 build.sh                 compila os programas em C/C++
 Simulador/               simulador gráfico (GTK2 + SDL2) com SNDN, clock fixo e áudio corrigido
 Montador/                montador com a instrução SNDN
-SimpleSimulator/         processador ciclo a ciclo em C (requisito 2)
+SimpleSimulator/         processador ciclo a ciclo em C, com a instrução SNDN (requisitos 2 e 3)
 docs/                    documentação técnica (PDF), nova instrução e formato de partitura
 tools/
   gera_jogo.py           regenera tudo e monta o jogo (usa os três geradores abaixo)

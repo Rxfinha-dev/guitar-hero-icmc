@@ -59,7 +59,8 @@ Exemplo, montado pelo montador modificado: `sndn r1, r2, r3` → `11011000101001
 
 **Semântica.** Síntese **monofônica**: a instrução interrompe a nota que estiver
 tocando, inicia a nova e termina no mesmo ciclo. A CPU segue executando enquanto
-o áudio toca em paralelo.
+o áudio toca em paralelo. No Simple Simulator, que não tem áudio, a nota é mostrada
+no terminal, e a instrução se comporta da mesma forma para o programa.
 
 ### Decisões de projeto
 
@@ -79,7 +80,33 @@ o áudio toca em paralelo.
 
 ## 3. Arquivos alterados
 
-### Simulador (`Simulador/`)
+### Simple Simulator (`SimpleSimulator/simple_simulator.c`)
+
+O enunciado da SSC0511 pede a modificação no Simple Simulator ou na FPGA. Aqui a `SNDN`
+entra como as outras instruções: o opcode na lista de `#define` e um `case` no estado
+`DECODE` da máquina de controle.
+
+```c
+#define SNDN 54     // "110110"; -- SNDN Rx Ry Rz -- Inicia a nota e segue
+
+case SNDN:
+    // Sem audio: mostra a nota no terminal. Termina neste ciclo, sem esperar a
+    // nota, sem usar a ULA (flags intactos) e sem carregar nenhum registrador.
+    printf("[SNDN] freq=%d dur=%d onda=%d\n", reg[rx], reg[ry], reg[rz]);
+    fflush(stdout);
+    state=STATE_FETCH;
+    break;
+```
+
+Os campos `rx`, `ry` e `rz` já são separados do `IR` a cada ciclo. Depois da busca, a
+instrução gasta um único ciclo no `DECODE` e volta para o `FETCH`: é isso que mostra, no
+nível do hardware, que ela não bloqueia. O `OUTCHAR` segue o mesmo caminho.
+
+O programa `testes/simples/TesteSndn.asm` confere os operandos, os registradores, os flags,
+a pilha e o avanço do `PC`, e roda também no harness do simulador gráfico. O `testa_tudo.py`
+exige as mesmas 9 notas nos dois.
+
+### Simulador gráfico (`Simulador/`)
 
 **`Mneumonicos.h`**: o opcode:
 ```c
@@ -161,9 +188,10 @@ três pontos no `defs.h` e três no `montador.c`.
 
 ### Hardware (FPGA)
 
-Para levar a `SNDN` à FPGA, a unidade de controle trata o opcode `110110` como o
+Para levar a `SNDN` à FPGA, a unidade de controle trataria o opcode `110110` como o
 `SOUND`, mas sem o estado de espera. Os campos Rx/Ry/Rz já são decodificados do
-mesmo jeito. *(Este trabalho foi feito para a SSC0511, em que o simulador basta.)*
+mesmo jeito. *(Este projeto não usa FPGA: o enunciado da SSC0511 aceita o Simple Simulator
+no lugar dela.)*
 
 ## 4. Uso no jogo
 

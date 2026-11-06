@@ -1,7 +1,7 @@
-; Teste da instrucao sndn original (bloqueante).
-; Toca Do-Re-Mi com 200 ms cada e escreve um '*' na tela entre as notas.
-; No simulador grafico a tela congela durante cada nota; no harness headless
-; o log de som mostra as tres chamadas marcadas como bloqueantes.
+; Teste da instrucao nova sndn (nao bloqueante), para comparar com o teste_som.asm.
+; Pede Do-Re-Mi com 200 ms cada e escreve um '*' na tela entre as notas.
+; Os '*' aparecem na hora e so' se ouve o Mi: cada sndn substitui a nota anterior.
+; No harness headless, o log de som mostra as tres chamadas como nao bloqueantes.
 
 jmp main
 

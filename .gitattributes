@@ -4,3 +4,6 @@
 
 # Scripts de shell precisam de LF para rodar no Linux.
 *.sh text eol=lf
+
+# O Git confunde o PDF gerado com texto e trocaria as quebras de linha, danificando o arquivo.
+*.pdf binary

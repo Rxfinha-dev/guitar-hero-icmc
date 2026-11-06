@@ -62,6 +62,7 @@ Do todos os comandos...
 // I/O Instructions:
 #define OUTCHAR	50  // "110010"; -- OUTCHAR Rx Ry -- Video[Ry] <- Char(Rx)								Format: < inst(6) | Rx(3) | Ry(3) | xxxx >
 #define INCHAR 53   // "110101"; -- INCHAR Rx     -- Rx[7..0] <- KeyPressed	Rx[15..8] <- 0´s  Format: < inst(6) | Rx(3) | xxxxxxx >
+#define SNDN 54     // "110110"; -- SNDN Rx Ry Rz -- Inicia a nota e segue: Rx = freq (Hz), Ry = duracao (ms), Rz = onda	Format: < inst(6) | Rx(3) | Ry(3) | Rz(3) | x >
 
 
 // Aritmethic Instructions(All should begin wiht "10"):
@@ -354,6 +355,15 @@ loop:
 				case OUTCHAR:
 					// Sem tela grafica: escreve so' o caractere (bits 7-0, sem a cor) no terminal
 					printf("%c", pega_pedaco(reg[rx],7,0));
+					fflush(stdout);
+					// -----------------------------
+					state=STATE_FETCH;
+					break;
+
+				case SNDN:
+					// Sem audio: mostra a nota no terminal. Termina neste ciclo, sem esperar a
+					// nota, sem usar a ULA (flags intactos) e sem carregar nenhum registrador.
+					printf("[SNDN] freq=%d dur=%d onda=%d\n", reg[rx], reg[ry], reg[rz]);
 					fflush(stdout);
 					// -----------------------------
 					state=STATE_FETCH;
